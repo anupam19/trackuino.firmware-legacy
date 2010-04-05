@@ -1,7 +1,7 @@
 How to compile
 --------------
 
-1. Edit src/ax25.cpp, replace my callsign (EA5HAV) with yours
+1. Edit src/aprs.cpp, replace my callsign (EA5HAV) with yours
 2. Edit Makefile, replace MCU (atmega328p) and PORT with yours
 3. Run 'make'
 
