@@ -1,0 +1,22 @@
+How to compile
+--------------
+
+1. Edit src/ax25.cpp, replace my callsign (EA5HAV) with yours
+2. Edit Makefile, replace MCU (atmega328p) and PORT with yours
+3. Run 'make'
+
+How to upload
+-------------
+
+1. Run 'make upload'
+
+How to import the Arduino libraries from the IDE
+------------------------------------------------
+
+1. copy core lib to lib/Core
+2. copy all other libs to lib/*
+3. mkdir include
+4. find lib/ -name "*.h" -exec mv "{}" include/ \;
+5. try 'make' and remove compilation erros as they come, mainly:
+  * mismatching #include <utility/...> / <...> in the Wire and Ethernet libraries
+6. optionally replace <avr/delay.h> with <util/delay.h> to remove some a few warnings
