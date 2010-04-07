@@ -47,41 +47,6 @@ const unsigned char sine_table[] = {
    54,  55,  56,  57,  59,  60,  61,  63,  64,  66,  67,  68,  70,  71,  72,  74,  75,  77,  78,  80,  81, 
    83,  84,  86,  87,  88,  90,  91,  93,  95,  96,  98,  99, 101, 102, 104, 105, 107, 108, 110, 111, 113, 
   115, 116, 118, 119, 121, 122, 124, 125  
-/*
-  // Sine wave 0.6 .. 5 volts
-  142, 143, 145, 146, 147, 149, 150, 152, 153, 154, 156, 157, 158, 160, 161, 162, 
-  164, 165, 166, 168, 169, 170, 172, 173, 174, 176, 177, 178, 180, 181, 182, 183, 
-  185, 186, 187, 188, 190, 191, 192, 193, 195, 196, 197, 198, 199, 200, 202, 203, 
-  204, 205, 206, 207, 208, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 
-  221, 222, 223, 224, 225, 226, 226, 227, 228, 229, 230, 231, 232, 232, 233, 234, 
-  235, 235, 236, 237, 238, 238, 239, 240, 240, 241, 242, 242, 243, 243, 244, 244, 
-  245, 246, 246, 247, 247, 247, 248, 248, 249, 249, 249, 250, 250, 250, 251, 251, 
-  251, 252, 252, 252, 252, 252, 253, 253, 253, 253, 253, 253, 253, 253, 253, 253, 
-  254, 253, 253, 253, 253, 253, 253, 253, 253, 253, 253, 252, 252, 252, 252, 252, 
-  251, 251, 251, 250, 250, 250, 249, 249, 249, 248, 248, 247, 247, 247, 246, 246, 
-  245, 244, 244, 243, 243, 242, 242, 241, 240, 240, 239, 238, 238, 237, 236, 235, 
-  235, 234, 233, 232, 232, 231, 230, 229, 228, 227, 226, 226, 225, 224, 223, 222, 
-  221, 220, 219, 218, 217, 216, 215, 214, 213, 212, 211, 210, 208, 207, 206, 205, 
-  204, 203, 202, 200, 199, 198, 197, 196, 195, 193, 192, 191, 190, 188, 187, 186, 
-  185, 183, 182, 181, 180, 178, 177, 176, 174, 173, 172, 170, 169, 168, 166, 165, 
-  164, 162, 161, 160, 158, 157, 156, 154, 153, 152, 150, 149, 147, 146, 145, 143, 
-  142, 141, 139, 138, 137, 135, 134, 132, 131, 130, 128, 127, 126, 124, 123, 122, 
-  120, 119, 118, 116, 115, 114, 112, 111, 110, 108, 107, 106, 104, 103, 102, 101, 
-   99,  98,  97,  96,  94,  93,  92,  91,  89,  88,  87,  86,  85,  84,  82,  81, 
-   80,  79,  78,  77,  76,  74,  73,  72,  71,  70,  69,  68,  67,  66,  65,  64, 
-   63,  62,  61,  60,  59,  58,  58,  57,  56,  55,  54,  53,  52,  52,  51,  50, 
-   49,  49,  48,  47,  46,  46,  45,  44,  44,  43,  42,  42,  41,  41,  40,  40, 
-   39,  38,  38,  37,  37,  37,  36,  36,  35,  35,  35,  34,  34,  34,  33,  33, 
-   33,  32,  32,  32,  32,  32,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31, 
-   31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  31,  32,  32,  32,  32,  32, 
-   33,  33,  33,  34,  34,  34,  35,  35,  35,  36,  36,  37,  37,  37,  38,  38, 
-   39,  40,  40,  41,  41,  42,  42,  43,  44,  44,  45,  46,  46,  47,  48,  49, 
-   49,  50,  51,  52,  52,  53,  54,  55,  56,  57,  58,  58,  59,  60,  61,  62, 
-   63,  64,  65,  66,  67,  68,  69,  70,  71,  72,  73,  74,  76,  77,  78,  79, 
-   80,  81,  82,  84,  85,  86,  87,  88,  89,  91,  92,  93,  94,  96,  97,  98, 
-   99, 101, 102, 103, 104, 106, 107, 108, 110, 111, 112, 114, 115, 116, 118, 119, 
-  120, 122, 123, 124, 126, 127, 128, 130, 131, 132, 134, 135, 137, 138, 139, 141
-*/
 };
 
 // Globals
@@ -96,17 +61,10 @@ int test_frequency;
 int packet_size = 0;
 unsigned char packet[512];
 
-/* TODO: Since we're so close to the pwm frequency (F_CPU/256 = 62500 Hz),
- * why not using timer2's interrupt to feed samples to OCR2x at the exact
- * PWM rate and do without timer1 whatsoever? HINT: pre-calculate the next
- * value at the previous interrupt so that the new value is quickly fed
- * at the beginning of the ISR. Otherwise we might miss the counter.
- */
-
 // Constants
 const int REST_DUTY                 = sine_table[0];
 const int TABLE_SIZE                = sizeof(sine_table);
-const unsigned long PLAYBACK_RATE   = 48000;
+const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
 const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
 const int LED_PIN                   = 13;
 const int SPEAKER_PIN               = 3;
@@ -138,10 +96,10 @@ void modem_setup()
   // Set up Timer 2 to do pulse width modulation on the speaker
   // pin.
   
-  // Use internal clock (datasheet p.160)
+  // Source timer2 from clkIO (datasheet p.164)
   ASSR &= ~(_BV(EXCLK) | _BV(AS2));
   
-  // Set fast PWM mode  (p.157)
+  // Set fast PWM mode with TOP = 0xff: WGM22:0 = 3  (p.150)
   TCCR2A |= _BV(WGM21) | _BV(WGM20);
   TCCR2B &= ~_BV(WGM22);
 
@@ -161,30 +119,12 @@ void modem_setup()
 
   // Set initial pulse width to the rest position (0v after DC decoupling)
   OCR2B = REST_DUTY;
-
-
-  // Set up Timer 1 to send a sample every interrupt.
-
-  // Set CTC mode (Clear Timer on Compare Match) (p.133)
-  // Have to set OCR1A *after*, otherwise it gets reset to 0!
-  TCCR1B = (TCCR1B & ~_BV(WGM13)) | _BV(WGM12);
-  TCCR1A = TCCR1A & ~(_BV(WGM11) | _BV(WGM10));
-
-  // Set the compare register (OCR1A).
-  // OCR1A is a 16-bit register, so we have to do this with
-  // interrupts disabled to be safe.
-  cli();
-  OCR1A = TIMER1_DIVIDER;
-  sei();
 }
 
 void modem_start()
 {
-  // Enable interrupt when TCNT1 == OCR1A (p.136)
-  TIMSK1 |= _BV(OCIE1A);
-
-  // Start the per-sample timer without prescaler (p.137)
-  TCCR1B = (TCCR1B & ~(_BV(CS12) | _BV(CS11))) | _BV(CS10);
+  // Enable interrupt when TCNT2 reaches TOP (0xFF) (p.151, 163)
+  TIMSK2 |= _BV(TOIE2);
 
   // Key the radio
   digitalWrite(PTT_PIN, HIGH);
@@ -203,10 +143,7 @@ void modem_stop()
   digitalWrite(PTT_PIN, LOW);
   
   // Disable playback per-sample interrupt.
-  TIMSK1 &= ~_BV(OCIE1A);
-  
-  // Disable the per-sample timer completely.
-  TCCR1B &= ~_BV(CS10);
+  TIMSK2 &= ~_BV(TOIE2);
 
   digitalWrite(LED_PIN, LOW);
 }
@@ -240,7 +177,9 @@ modem_test()
 
 
 // This is called at PLAYBACK_RATE Hz to load the next sample.
-ISR(TIMER1_COMPA_vect) {
+// More about interrupts:
+// http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
+ISR(TIMER2_OVF_vect) {
   if (go) {
     if (packet_pos == packet_size) {
       go = 0;
