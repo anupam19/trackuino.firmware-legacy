@@ -3,7 +3,7 @@
 TARGET = trackuino
 INSTALL_DIR = /Applications/Arduino.app/Contents/Resources/Java
 PORT = /dev/tty.usb*
-UPLOAD_RATE = 19200
+UPLOAD_RATE = 57600
 AVRDUDE_PROGRAMMER = stk500v1
 MCU = atmega328p
 F_CPU = 16000000
@@ -25,9 +25,6 @@ CXXSRC = $(wildcard lib/Core/*.cpp) \
 FORMAT = ihex
 
 
-# Name of this Makefile (used for "make depend").
-MAKEFILE = Makefile
-
 # Debugging format.
 # Native formats for AVR-GCC's -g are stabs [default], or dwarf-2.
 # AVR (extended) COFF requires stabs, plus an avr-objcopy run.
@@ -44,13 +41,11 @@ CXXDEFS = -DF_CPU=$(F_CPU)
 CINCS = -Iinclude
 CXXINCS = -Iinclude
 
-# Compiler flag to set the C Standard level.
-# c89   - "ANSI" C
-# gnu89 - c89 plus GCC extensions
-# c99   - ISO C99 standard (not yet fully implemented)
-# gnu99 - c99 plus GCC extensions
+# Debugging options
 CDEBUG = -g$(DEBUG)
 CWARN = -Wall -Wstrict-prototypes
+
+# Extra options
 CEXTRA = -ffunction-sections -fdata-sections
 CXXEXTRA = -fno-exceptions -ffunction-sections -fdata-sections
 
@@ -63,7 +58,7 @@ LDFLAGS = -lm
 # Programming support using avrdude. Settings and variables.
 AVRDUDE_PORT = $(PORT)
 AVRDUDE_WRITE_FLASH = -U flash:w:build/$(TARGET).hex
-AVRDUDE_FLAGS = -V -F -C $(INSTALL_DIR)/hardware/tools/avr/etc/avrdude.conf \
+AVRDUDE_FLAGS = -C $(INSTALL_DIR)/hardware/tools/avr/etc/avrdude.conf \
 -p $(MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER) \
 -b $(UPLOAD_RATE)
 
