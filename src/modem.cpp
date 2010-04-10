@@ -30,7 +30,6 @@
 
 #include "config.h"
 #include "modem.h"
-#include "radio.h"
 #include "radio_mx146.h"
 #include "radio_hx1.h"
 #include <WProgram.h>
@@ -90,12 +89,12 @@ unsigned char packet[512];
 RADIO_CLASS radio;
 
 // Constants
-const int REST_DUTY                 = sine_table[0];
+const unsigned char REST_DUTY       = sine_table[0];
 const int TABLE_SIZE                = sizeof(sine_table);
 const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
 const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
 const int LED_PIN                   = 13;
-const int SPEAKER_PIN               = 3;
+const int SPEAKER_PIN               = PWM_PIN;
 const int BAUD_RATE                 = 1200;
 const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
 const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
@@ -228,7 +227,7 @@ ISR(TIMER2_OVF_vect) {
     phase += phase_delta;
     OCR2 = sine_table[(phase >> 7) & (TABLE_SIZE - 1)];
     
-        if(++current_sample_in_baud == SAMPLES_PER_BAUD) {
+    if(++current_sample_in_baud == SAMPLES_PER_BAUD) {
       current_sample_in_baud = 0;
       packet_pos++;
     }
