@@ -94,7 +94,7 @@ sizeafter: $(BUILD_DIR)/$(TARGET).hex
 # Clean project.
 clean:
 	$(REMOVE) $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).eep \
-		$(BUILD_DIR)/$(TARGET).cof $(BUILD_DIR)/$(TARGET).elf \
+		$(BUILD_DIR)/$(TARGET).cof $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).a \
 		$(BUILD_DIR)/$(TARGET).map $(BUILD_DIR)/$(TARGET).sym $(BUILD_DIR)/$(TARGET).lss \
 		$(OBJ) $(LST) $(SRC:.c=.s) $(SRC:.c=.d) $(CXXSRC:.cpp=.s) $(CXXSRC:.cpp=.d)
 
