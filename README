@@ -1,22 +1,43 @@
 How to compile
 --------------
 
-1. Edit src/aprs.cpp, replace my callsign (EA5HAV) with yours
-2. Edit Makefile, replace MCU (atmega328p) and PORT with yours
-3. Run 'make'
+1. Edit Makefile.user, replace settings with your own
+2. Edit src/config.h, replace settings with your own
+3. cd src
+4. make
 
-How to upload
--------------
+How to flash
+------------
 
-1. Run 'make upload'
+1. Connect the Arduino to the USB port
+2. cd src
+3. make upload
 
-How to import the Arduino libraries from the IDE
-------------------------------------------------
+Other useful commands
+---------------------
 
-1. copy core lib to lib/Core
-2. copy all other libs to lib/*
+- 'cd src; make lss': creates the assembler listing file
+- 'cd src; make clean': cleans project files
+- 'cd lib; make': builds just the library (libarduino.a)
+
+How were the Arduino libs imported
+----------------------------------
+
+The lib/ directory contains the Arduino libraries, with some of the files
+shuffled around so that the source tree looks cleaner (ie. separation
+between .c/.cpp and .h). The tracker only needs the Wire and Core libs,
+everything else is included so that the whole tree can be used as a
+template for a different project.
+
+This is what I did to import the Arduino libs, in case they need to be
+upgraded:
+
+0. Installed Arduino (current libs are from version 017)
+1. copied $ARDUINO_DIR/hardware/cores/arduino/* to lib/Core
+2. copied -r $ARDUINO_DIR/hardware/libraries/ to lib/
 3. mkdir include
 4. find lib/ -name "*.h" -exec mv "{}" include/ \;
-5. try 'make' and remove compilation erros as they come, mainly:
+5. removed compilation erros resulting from file re-shuffling, mainly:
   * mismatching #include <utility/...> / <...> in the Wire and Ethernet libraries
-6. optionally replace <avr/delay.h> with <util/delay.h> to remove some a few warnings
+6. replaced <avr/delay.h> with <util/delay.h> to remove a few warnings
+

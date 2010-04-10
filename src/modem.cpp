@@ -1,24 +1,49 @@
-/*
- *  modem.cpp
- *  trackuino
+/* trackuino copyright (C) 2010  EA5HAV Javi
  *
- *  Created by javi on 29/01/10.
- *  Copyright 2010 __MyCompanyName__. All rights reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+/* Credit to:
+ *
+ * Michael Smith for his Example of Audio generation with two timers and PWM:
+ * http://www.arduino.cc/playground/Code/PCMAudio
+ *
+ * Ken Shirriff for his Great article on PWM:
+ * http://arcfn.com/2009/07/secrets-of-arduino-pwm.html 
+ *
+ * The large group of people who created the free AVR tools.
+ * Documentation on interrupts:
+ * http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
+ */
+
+#include "config.h"
 #include "modem.h"
-
-#include "WProgram.h"
-
-
-// Credit to: http://www.arduino.cc/playground/Code/PCMAudio
-// Credit to: http://arcfn.com/2009/07/secrets-of-arduino-pwm.html
-
-
+#include "radio.h"
+#include "radio_mx146.h"
+#include "radio_hx1.h"
+#include <WProgram.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
+
+#if PWM_PIN == 3
+#  define OCR2 OCR2B
+#endif
+#if PWM_PIN == 11
+#  define OCR2 OCR2A
+#endif
 
 
 const unsigned char sine_table[] = {
@@ -61,6 +86,9 @@ int test_frequency;
 int packet_size = 0;
 unsigned char packet[512];
 
+// The radio (class defined in config.h)
+RADIO_CLASS radio;
+
 // Constants
 const int REST_DUTY                 = sine_table[0];
 const int TABLE_SIZE                = sizeof(sine_table);
@@ -68,7 +96,6 @@ const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
 const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
 const int LED_PIN                   = 13;
 const int SPEAKER_PIN               = 3;
-const int PTT_PIN                   = 4;
 const int BAUD_RATE                 = 1200;
 const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
 const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
@@ -89,9 +116,13 @@ const unsigned int PHASE_DELTA_2200 = (((TABLE_SIZE * 2200L) << 7) / PLAYBACK_RA
 
 void modem_setup()
 {
+  // Configure pins
   pinMode(PTT_PIN, OUTPUT);
   digitalWrite(PTT_PIN, LOW);
   pinMode(SPEAKER_PIN, OUTPUT);
+
+  // Start radio
+  radio.setup();
 
   // Set up Timer 2 to do pulse width modulation on the speaker
   // pin.
@@ -103,44 +134,46 @@ void modem_setup()
   TCCR2A |= _BV(WGM21) | _BV(WGM20);
   TCCR2B &= ~_BV(WGM22);
 
-#if 0  
+#if PWM_PIN == 11
   // Do non-inverting PWM on pin OC2A (arduino pin 11) (p.159)
   // OC2B (arduino pin 3) stays in normal port operation:
+  // COM2A1=1, COM2A0=0, COM2B1=0, COM2B0=0
   TCCR2A = (TCCR2A | _BV(COM2A1)) & ~(_BV(COM2A0) | _BV(COM2B1) | _BV(COM2B0));
 #endif  
 
+#if PWM_PIN == 3
   // Do non-inverting PWM on pin OC2B (arduino pin 3) (p.159).
   // OC2A (arduino pin 11) stays in normal port operation: 
   // COM2B1=1, COM2B0=0, COM2A1=0, COM2A0=0
   TCCR2A = (TCCR2A | _BV(COM2B1)) & ~(_BV(COM2B0) | _BV(COM2A1) | _BV(COM2A0));
+#endif
   
   // No prescaler (p.162)
   TCCR2B = (TCCR2B & ~(_BV(CS22) | _BV(CS21))) | _BV(CS20);
 
   // Set initial pulse width to the rest position (0v after DC decoupling)
-  OCR2B = REST_DUTY;
+  OCR2 = REST_DUTY;
 }
 
 void modem_start()
 {
+  // Key the radio
+  radio.ptt_on();
+ 
   // Enable interrupt when TCNT2 reaches TOP (0xFF) (p.151, 163)
   TIMSK2 |= _BV(TOIE2);
 
-  // Key the radio
-  digitalWrite(PTT_PIN, HIGH);
-
   digitalWrite(LED_PIN, HIGH);
-  delay(25); // TODO: move this to radio_mx146
 }
 
 
 void modem_stop()
 {
   // Output 0v (after DC coupling)
-  OCR2B = REST_DUTY;
+  OCR2 = REST_DUTY;
 
   // Release PTT
-  digitalWrite(PTT_PIN, LOW);
+  radio.ptt_off();
   
   // Disable playback per-sample interrupt.
   TIMSK2 &= ~_BV(TOIE2);
@@ -177,8 +210,6 @@ modem_test()
 
 
 // This is called at PLAYBACK_RATE Hz to load the next sample.
-// More about interrupts:
-// http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
 ISR(TIMER2_OVF_vect) {
   if (go) {
     if (packet_pos == packet_size) {
@@ -195,7 +226,7 @@ ISR(TIMER2_OVF_vect) {
     }
     
     phase += phase_delta;
-    OCR2B = sine_table[(phase >> 7) & (TABLE_SIZE - 1)];
+    OCR2 = sine_table[(phase >> 7) & (TABLE_SIZE - 1)];
     
         if(++current_sample_in_baud == SAMPLES_PER_BAUD) {
       current_sample_in_baud = 0;
@@ -208,7 +239,7 @@ ISR(TIMER2_OVF_vect) {
     // Output sawteeth signals of increasing frequency. Be done
     // after covering the freq range 0-255
     if (test_frequency > 255) {
-      OCR2B = 127;
+      OCR2 = 127;
       modem_stop();
       test_amplitude = 0;
       return;
@@ -217,7 +248,7 @@ ISR(TIMER2_OVF_vect) {
       test_amplitude = 0;
       test_frequency++;
     }
-    OCR2B = test_amplitude;
+    OCR2 = test_amplitude;
     test_amplitude += test_frequency;
     return;
   }

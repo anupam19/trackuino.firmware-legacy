@@ -15,7 +15,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __DEBUG_H__
-#define __DEBUG_H__
+#ifndef __RADIO_HX1_H__
+#define __RADIO_HX1_H__
+
+#include "radio.h"
+
+class RadioHx1 : public Radio {
+  public:
+    virtual void setup();
+    virtual void ptt_on();
+    virtual void ptt_off();
+};
 
 #endif
