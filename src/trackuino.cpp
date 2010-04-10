@@ -1,41 +1,33 @@
-/*
- *  trackuino.cpp
- *  trackuino
+/* trackuino copyright (C) 2010  EA5HAV Javi
  *
- *  Created by javi on 30/01/10.
- *  Copyright 2010 __MyCompanyName__. All rights reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include "config.h"
 #include "modem.h"
 #include "gps.h"
 #include "aprs.h"
 #include "trackuino.h"
 #include "radio_mx146.h"
-#include "WProgram.h"
+#include <WProgram.h>
 #include <SoftwareSerial.h>
 #include <avr/power.h>
 #include <avr/sleep.h>
 
 Gps gps;
 unsigned long next_tx_millis;
-
-
-/* APRS broadcast periods: Hopefully CSMA adds enough randomness 
- * already, but odd periods (ie 61 secs) might avoid collision 
- * with other stations transmitting at fixed intervals like us.
- *
- * Low-power transmissions on occasional events (such as a balloon
- * launch) might be okay at lower-than-standard APRS periods (< 10m).
- * Maybe check with/ask permision to local digipeaters beforehand?
- */
-const unsigned long APRS_PERIOD_DEBUG     = 5000UL;   // Debug: 5 secs
-const unsigned long APRS_PERIOD_BALLOON   = 61000UL;  // Balloon tracking: 1m 1s
-const unsigned long APRS_PERIOD_STD       = 601000UL; // Standard APRS: 10m (+ 1s)
-const unsigned long APRS_PERIOD           = APRS_PERIOD_BALLOON;
-
-/* An initial delay will allow the gps acquire a fix */
-const unsigned long APRS_DELAY            = 30000UL;  // 30 secs
 
 void disable_bod_and_sleep()
 {
@@ -89,9 +81,8 @@ void power_save()
 void setup()
 {
   Serial.begin(9600);
-  radio_mx146_setup();
   modem_setup();
-  next_tx_millis = millis(); // + APRS_DELAY;
+  next_tx_millis = millis() + APRS_DELAY;
 }
 
 void loop()

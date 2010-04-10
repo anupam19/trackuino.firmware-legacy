@@ -1,44 +1,39 @@
-/*
- *  aprs.cpp
- *  trackuino
+/* trackuino copyright (C) 2010  EA5HAV Javi
  *
- *  Created by javi on 19/03/10.
- *  Copyright 2010 __MyCompanyName__. All rights reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include "config.h"
 #include "ax25.h"
 #include "gps.h"
 #include "aprs.h"
 
 void aprs_send(Gps &gps)
 {
-  /* Some considerations on generic digipeating:
-   * (summarized from: http://wa8lmf.net/DigiPaths/ )
-   *
-   * - RELAY digis cause too much QRM and may be ignored by wide area (ie. hilltop) digis, if
-   *   not anyone nowadays.
-   * - A digi callsign, if known, can be used instead of WIDEn-N to avoid double-digipeating
-   *   when two digis are at reach.
-   * - Home user digis use the alias WIDE1-1 (not RELAY anymore), so if we need the aid of a home
-   *   fill-in digi, WIDE1-1,WIDE2-1 is the way to go.
-   * - If a hilltop digi is at reach, WIDE2-2 is the shortest, most optimum setting.
-   *
-   * And also some considerations on the source SSID 
-   * (summarized from: http://zlhams.wikidot.com/aprs-ssidguide )
-   *
-   * - There is no strict guideline about the source SSID, but one common use is to redundantly
-   *   indicate the symbol (already indicated with the latXlon syntax). This is useful if we are
-   *   transmitting from two stations, to help the network tell them apart. Ie: when chasing
-   *   a balloon (-11) from a car (-9).
-   */
   const struct s_address addresses[] = { 
-    {"APRS",    0},  // Destination callsign
-    {"EA5HAV", 11},  // Source callsign (-11 = balloon, -9 = car)
-    {"WIDE2",   2}  // Digi1 (first digi in the chain)
+    {D_CALLSIGN, D_CALLSIGN_ID},  // Destination callsign
+    {S_CALLSIGN, S_CALLSIGN_ID},  // Source callsign (-11 = balloon, -9 = car)
+#ifdef DIGI_PATH1
+    {DIGI_PATH1, DIGI_PATH1_TTL}, // Digi1 (first digi in the chain)
+#endif
+#ifdef DIGI_PATH2
+    {DIGI_PATH2, DIGI_PATH2_TTL}, // Digi2 (second digi in the chain)
+#endif
   };
 
-  ax25_send_header(addresses, 3);
+  ax25_send_header(addresses, sizeof(addresses)/sizeof(s_address));
   ax25_send_string("/");              // Report w/ timestamp, no APRS messaging. $ = NMEA raw data
   // ax25_send_string("021709z");     // 021709z = 2nd day of the month, 17:09 zulu (UTC/GMT)
   ax25_send_string(gps.get_time());   // 170915h = 17h:09m:15s zulu (not allowed in Status Reports)
@@ -51,8 +46,7 @@ void aprs_send(Gps &gps)
   ax25_send_string(gps.get_speed());  // speed (knots)
   ax25_send_string("/A=");            // Altitude (feet). Goes anywhere in the comment area
   ax25_send_string(gps.get_altitude());
-  ax25_send_string(                   // Comment
-           " - Prueba TRACKUINO");  
+  ax25_send_string(APRS_COMMENT);     // Comment
   ax25_send_footer();
   ax25_flush_frame();                 // Tell the modem to go
 }

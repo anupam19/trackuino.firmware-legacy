@@ -1,12 +1,21 @@
-/*
- *  ax25.cpp
- *  trackuino
+/* trackuino copyright (C) 2010  EA5HAV Javi
  *
- *  Created by javi on 30/01/10.
- *  Copyright 2010 __MyCompanyName__. All rights reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include "config.h"
 #include "ax25.h"
 #include "modem.h"
 
@@ -17,9 +26,6 @@ extern int packet_size; // in bits
 // Module globals
 unsigned short int crc;
 int ones_in_a_row;
-
-// Constants
-const int TX_DELAY = 75;  // real tx delay = TX_DELAY * 6.67 ms (@ 1200 baud)
 
 
 void
@@ -79,8 +85,8 @@ ax25_send_header(const struct s_address *addresses, int num_addresses)
   ones_in_a_row = 0;
   crc = 0xffff;
   
-  // Send TXDELAY flags (TXDELAY * 8 / 1200 segs)
-  for (i = 0; i < TX_DELAY; i++) {
+  // Send flags during TX_DELAY milliseconds (8 bit-flag = 8000/1200 ms)
+  for (i = 0; i < TX_DELAY * 3 / 20; i++) {
     ax25_send_flag();
   }
   

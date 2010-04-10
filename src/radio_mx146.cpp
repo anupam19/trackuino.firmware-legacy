@@ -1,21 +1,29 @@
-/*
- *  radio_mx146.cpp
- *  trackuino
+/* trackuino copyright (C) 2010  EA5HAV Javi
  *
- *  Created by javi on 02/04/10.
- *  Copyright 2010 __MyCompanyName__. All rights reserved.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include "config.h"
 #include "radio_mx146.h"
-
-#include "Wire.h"
-#include "WProgram.h"
+#include <Wire.h>
+#include <WProgram.h>
 
 const int MAX_RES = 16;
 char res[MAX_RES];
 
-void radio_mx146_cmd(const char *cmd, int cmd_len, char *res, int res_len)
+void RadioMx146::send_cmd(const char *cmd, int cmd_len, char *res, int res_len)
 {
   int i;
   Wire.beginTransmission(0x48);
@@ -34,22 +42,34 @@ void radio_mx146_cmd(const char *cmd, int cmd_len, char *res, int res_len)
   }
 }
 
-void radio_mx146_set_freq(unsigned long freq)
+void RadioMx146::set_freq(unsigned long freq)
 {
   char cmd[5];
   cmd[0] = 'B';
   *((unsigned long *)(cmd+1)) = freq;
-  radio_mx146_cmd(cmd, 5, res, MAX_RES);
+  send_cmd(cmd, 5, res, MAX_RES);
 }
 
-int mx146_query_temp()
+int RadioMx146::query_temp()
 {
-  radio_mx146_cmd("QT", 2, res, 1);
+  send_cmd("QT", 2, res, 1);
   return res[0];
 }
 
-void radio_mx146_setup()
+void RadioMx146::setup()
 {
-  Wire.begin();
-  radio_mx146_set_freq(144800000UL);
+  Wire.begin();   // Join the I2C bus as a master
+  set_freq(144800000UL);
+}
+
+void RadioMx146::ptt_on()
+{
+  digitalWrite(PTT_PIN, HIGH);
+  // TODO: should wait for the "RDY" signal
+  delay(25);
+}
+
+void RadioMx146::ptt_off()
+{
+  digitalWrite(PTT_PIN, LOW);
 }

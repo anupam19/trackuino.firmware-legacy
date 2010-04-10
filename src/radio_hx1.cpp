@@ -15,7 +15,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __DEBUG_H__
-#define __DEBUG_H__
+#include "config.h"
+#include "radio_hx1.h"
+#include <WProgram.h>
 
-#endif
+
+void RadioHx1::setup()
+{
+  // Nothing to set up... This is a really simple radio
+}
+
+void RadioHx1::ptt_on()
+{
+  digitalWrite(PTT_PIN, HIGH);
+  delay(5);   // The HX1 takes 5 ms from PTT to full RF
+}
+
+void RadioHx1::ptt_off()
+{
+  digitalWrite(PTT_PIN, LOW);
+}
