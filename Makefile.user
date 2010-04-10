@@ -1,0 +1,11 @@
+# Put your own settings here:
+
+#AVR_PATH = /Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr
+AVR_PATH = /usr/local/CrossPack-AVR
+AVR_TOOLS_PATH = $(AVR_PATH)/bin
+AVRDUDE_CONF = $(AVR_PATH)/etc/avrdude.conf
+AVRDUDE_PROGRAMMER = stk500v1
+AVRDUDE_PORT = /dev/tty.usb*
+UPLOAD_RATE = 57600
+MCU = atmega328p
+F_CPU = 16000000
