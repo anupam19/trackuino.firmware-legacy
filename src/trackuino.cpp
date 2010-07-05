@@ -15,14 +15,19 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#include "config.h"
-#include "modem.h"
-#include "gps.h"
-#include "aprs.h"
-#include "trackuino.h"
-#include "radio_mx146.h"
-#include <WProgram.h>
-#include <SoftwareSerial.h>
+// Trackuino custom libs
+#include <ax25.h>
+#include <config.h>
+#include <debug.h>
+#include <gps.h>
+#include <modem.h>
+#include <radio.h>
+#include <radio_hx1.h>
+#include <radio_mx146.h>
+#include <sensors.h>
+
+// Arduino/AVR libs
+#include <Wire.h>
 #include <avr/power.h>
 #include <avr/sleep.h>
 
@@ -102,3 +107,4 @@ void loop()
     power_save();
   }
 }
+
