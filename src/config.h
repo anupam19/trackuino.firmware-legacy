@@ -25,18 +25,7 @@
 // --------------------------------------------------------------------------
 // APRS config (aprs.c)
 
-/* Some considerations on generic digipeating:
- * (summarized from: http://wa8lmf.net/DigiPaths/ )
- *
- * - Never use RELAY in the digi path. It will probably be ignored anyway.
- * - Use WIDE1-1, WIDE2-1 if you want the aid of home fill-in digis to reach
- *   a 'hilltop' digipeater. With the new WIDEN-n paradigm, most programs are
- *   configured to digipeat packets with "WIDE1-1" in their path.
- * - If a hilltop digi is at reach, WIDE2-2 is the shortest, most optimum
- *   setting.
- * - TTLs > 2 in busy areas are very likely unwelcome and maybe even ignored.
- *
- * And also some considerations on the source SSID 
+/* Some considerations on the source SSID:
  * (summarized from: http://zlhams.wikidot.com/aprs-ssidguide )
  *
  * - There is no strict guideline about the source SSID, but one common use
@@ -45,14 +34,20 @@
  *   stations, to help the network tell them apart. Ie: when chasing a 
  *   balloon (-11) from a car (-9).
  */
-#define S_CALLSIGN      "EA5HAV"    // your own callsign
+#define S_CALLSIGN      "AB0XYZ"    // your own callsign
 #define S_CALLSIGN_ID   11          // ... and SSID (11 = balloons, 9 = cars, etc.)
 #define D_CALLSIGN      "APRS"      // destination callsign
 #define D_CALLSIGN_ID   0           // ... and SSID
-#define DIGI_PATH1      "WIDE1"     // first digipeater in path (leave undefined if none)
+
+/* Digipeating paths:
+ * The recommended digi path for a balloon is WIDE2-1 or pathless. The dafault is
+ * to use WIDE2-1. Comment out the following two lines for pathless:
+ * (read more about digipeating paths here: http://wa8lmf.net/DigiPaths/ )
+ */
+#define DIGI_PATH1      "WIDE2"     // first digipeater in path (leave undefined if none)
 #define DIGI_PATH1_TTL  1           // ... and time-to-live
-#define DIGI_PATH2      "WIDE2"     // second digipeater (leave undefined if none)
-#define DIGI_PATH2_TTL  1           // ... and time-to-live
+
+/* APRS comment: this goes in the comment portion of the APRS message */
 #define APRS_COMMENT    "Prueba TRACKUINO"    // this goes in the APRS comment field
 
 // --------------------------------------------------------------------------
