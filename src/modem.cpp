@@ -119,6 +119,7 @@ void modem_setup()
   pinMode(PTT_PIN, OUTPUT);
   digitalWrite(PTT_PIN, LOW);
   pinMode(SPEAKER_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
 
   // Start radio
   radio.setup();
