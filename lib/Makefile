@@ -1,6 +1,7 @@
 ROOT=..
 TARGET = libarduino
 SRC    = $(wildcard Core/*.c) \
+				 $(wildcard Ethernet/utility/*.c) \
 				 $(wildcard Wire/utility/*.c)
 CXXSRC = $(wildcard Core/*.cpp) \
 				 $(wildcard EEPROM/*.cpp) \
