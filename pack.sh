@@ -23,6 +23,7 @@ rm -f eagle/trackuino-avr.{GBL,GBO,GBS,GTL,GTO,GTS,TXT,dri,gpi,GTP}
 dst=tmp/trackuino-ide-$version
 mkdir -p $dst/trackuino
 cp src/*.{cpp,h} $dst/trackuino
+rm $dst/trackuino/main.cpp
 mv $dst/trackuino/trackuino.cpp $dst/trackuino/trackuino.pde
 mkdir $dst/eagle
 cp eagle/* $dst/eagle
@@ -43,5 +44,5 @@ mkdir -p $dst
 cp -r WHATSNEW LICENSE include src Makefile.inc Makefile.user lib eagle $dst
 cp README.gcc-version $dst/README
 test -f trackuino-gcc-$version.tgz && rm trackuino-gcc-$version.tgz
-(cd tmp; tar -cvzf ../trackuino-gcc-$version.tgz *)
+(cd tmp; tar -cvz --exclude=.* -f ../trackuino-gcc-$version.tgz *)
 rm -rf tmp
