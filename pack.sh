@@ -1,10 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 
 # abort on errors
 set -e
 
 # date
 date=`date +%Y%m%d`
+
+# version
+version=`cat VERSION`
 
 # avoid mac os copying ._* files
 export COPY_EXTENDED_ATTRIBUTES_DISABLE=true
@@ -13,30 +16,32 @@ export COPYFILE_DISABLE=true
 # clean directory tree
 (cd src; make clean)
 (cd lib; make clean)
+rm -f eagle/*.b#? eagle/*.s#?
+rm -f eagle/trackuino-avr.{GBL,GBO,GBS,GTL,GTO,GTS,TXT,dri,gpi,GTP}
 
 # build arduino IDE package
-mkdir tmp
-for i in src/*.h; do
-  lib=`basename $i .h`
-  if [ "$lib" != trackuino ]; then
-    mkdir -p tmp/libraries/$lib
-    test -f src/$lib.h   && cp src/$lib.h   tmp/libraries/$lib
-    test -f src/$lib.cpp && cp src/$lib.cpp tmp/libraries/$lib
-    test -f src/$lib.c   && cp src/$lib.c   tmp/libraries/$lib
-  fi
+dst=tmp/trackuino-ide-$version
+mkdir -p $dst/trackuino
+cp src/*.{cpp,h} $dst/trackuino
+mv $dst/trackuino/trackuino.cpp $dst/trackuino/trackuino.pde
+mkdir $dst/eagle
+cp eagle/* $dst/eagle
+cp LICENSE $dst/LICENSE.txt
+cp README.ide-version  $dst/README.txt
+cp WHATSNEW $dst/WHATSNEW.txt
+for i in $dst/*.txt
+do
+  sed -i '' -e s/$// $i
 done
-mkdir tmp/trackuino
-cp src/trackuino.cpp tmp/trackuino/trackuino.pde
-mkdir tmp/trackuino/eagle
-cp eagle/* tmp/trackuino/eagle
-cp LICENSE tmp/trackuino/LICENSE.txt
-cp README  tmp/trackuino/README.txt
-test -f trackuino-ide-$date.zip && rm trackuino-ide-$date.zip
-(cd tmp; zip -9r ../trackuino-ide-$date.zip *) 
+test -f trackuino-ide-$version.zip && rm trackuino-ide-$version.zip
+(cd tmp; zip -9r ../trackuino-ide-$version.zip *) 
 rm -rf tmp
 
 # build makefile-based package for use with gcc-avr
-tar -C .. -cvz --exclude=.\* --exclude trackuino-gcc-\*tgz --exclude trackuino-ide-\*zip \
-  -f trackuino-gcc-$date.tgz trackuino
-
-
+dst=tmp/trackuino-gcc-$version
+mkdir -p $dst
+cp -r WHATSNEW LICENSE include src Makefile.inc Makefile.user lib eagle $dst
+cp README.gcc-version $dst/README
+test -f trackuino-gcc-$version.tgz && rm trackuino-gcc-$version.tgz
+(cd tmp; tar -cvzf ../trackuino-gcc-$version.tgz *)
+rm -rf tmp

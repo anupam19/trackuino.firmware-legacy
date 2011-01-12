@@ -16,18 +16,20 @@
  */
 
 // Trackuino custom libs
-#include <ax25.h>
-#include <config.h>
-#include <debug.h>
-#include <gps.h>
-#include <modem.h>
-#include <radio.h>
-#include <radio_hx1.h>
-#include <radio_mx146.h>
-#include <sensors.h>
+#include "aprs.h"
+#include "ax25.h"
+#include "config.h"
+#include "debug.h"
+#include "gps.h"
+#include "modem.h"
+#include "radio.h"
+#include "radio_hx1.h"
+#include "radio_mx146.h"
+#include "sensors.h"
 
 // Arduino/AVR libs
 #include <Wire.h>
+#include <WProgram.h>
 #include <avr/power.h>
 #include <avr/sleep.h>
 
@@ -87,6 +89,7 @@ void setup()
 {
   Serial.begin(9600);
   modem_setup();
+  sensors_setup();
   next_tx_millis = millis() + APRS_DELAY;
 }
 

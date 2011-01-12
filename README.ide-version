@@ -1,0 +1,23 @@
+How to compile the Trackuino firmware:
+--------------------------------------
+
+1. Copy the "trackuino" folder into your Arduino sketches folder. If you are
+   updating from a version previous to 1.1, delete all the trackuino libraries
+   inside the "libraries" folder. You'll get lots of compilation errors about
+   duplicate code otherwise.
+
+2. Launch the Arduino IDE and open up the sketch
+
+3. Locate the "config.h" tab and replace settings with your own (YOUR CALLSIGN
+   GOES THERE).
+
+4. Compile, upload, have fun!
+
+Note; The "eagle" folder contains the Eagle schematic files and libraries for
+the Trackuino board. Even if you don't use it as is, it will give you an idea
+of how to hook things up.
+
+Stay up-to-date at:
+
+http://code.google.com/p/trackuino
+

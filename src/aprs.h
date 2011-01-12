@@ -18,6 +18,8 @@
 #ifndef __APRS_H__
 #define __APRS_H__
 
+#include "gps.h"
+
 void aprs_send(Gps &gps);
 
 #endif

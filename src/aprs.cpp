@@ -19,9 +19,12 @@
 #include "ax25.h"
 #include "gps.h"
 #include "aprs.h"
+#include "sensors.h"
+#include <stdlib.h>
 
 void aprs_send(Gps &gps)
 {
+  char temp[12];                   // Temperature (int/ext)
   const struct s_address addresses[] = { 
     {D_CALLSIGN, D_CALLSIGN_ID},  // Destination callsign
     {S_CALLSIGN, S_CALLSIGN_ID},  // Source callsign (-11 = balloon, -9 = car)
@@ -46,6 +49,11 @@ void aprs_send(Gps &gps)
   ax25_send_string(gps.get_speed());  // speed (knots)
   ax25_send_string("/A=");            // Altitude (feet). Goes anywhere in the comment area
   ax25_send_string(gps.get_altitude());
+  ax25_send_string("/Ti=");
+  ax25_send_string(itoa(sensors_int_lm60(), temp, 10));
+  ax25_send_string("/Te=");
+  ax25_send_string(itoa(sensors_ext_lm60(), temp, 10));
+  ax25_send_string(" ");
   ax25_send_string(APRS_COMMENT);     // Comment
   ax25_send_footer();
   ax25_flush_frame();                 // Tell the modem to go
