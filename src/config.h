@@ -204,6 +204,8 @@
 //Units for temperature sensors
 // 1 = Celcius, 2 = Kelvin, 3 = Fahrenheit
 #define TEMP_UNIT 1
+//Calibration value in Celcius. Use integer only.
+#define CALIBRATION_VAL 0
 //Added by: Kyle Crockett
 
 #endif
