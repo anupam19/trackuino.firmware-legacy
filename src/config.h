@@ -201,4 +201,9 @@
 #define EXTERNAL_LM60_VS_PIN     7
 #define EXTERNAL_LM60_VOUT_PIN   1
 
+//Units for temperature sensors
+// 1 = Celcius, 2 = Kelvin, 3 = Fahrenheit
+#define TEMP_UNIT 1
+//Added by: Kyle Crockett
+
 #endif

@@ -87,7 +87,19 @@ int sensors_lm60(int powerPin, int readPin)
   int adc = analogRead(readPin);  // Real read
   digitalWrite(powerPin, LOW);    // Turn the LM60 off
   int mV = 1100L * adc / 1024L;   // Millivolts
-  return 4L * (mV - 424) / 25;    // Vo(mV) = (6.25*T) + 424 -> T = (Vo - 424) * 100 / 625
+  
+  switch (TEMP_UNIT)//Added by: Kyle Crockett
+  {
+	case 1://C
+		return 4L * (mV - 424) / 25;    // Vo(mV) = (6.25*T) + 424 -> T = (Vo - 424) * 100 / 625
+	break;
+	case 2://K
+		return (4L * (mV - 424) / 25) + 273; //C + 273 = K
+	break;
+	case 3://F
+		return ((9/5) * (4L * (mV - 424) / 25)) + 32; // (9/5)C + 32 = F
+	break;
+  };
 }
 
 int sensors_ext_lm60()
