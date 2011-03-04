@@ -91,13 +91,13 @@ int sensors_lm60(int powerPin, int readPin)
   switch (TEMP_UNIT)//Added by: Kyle Crockett
   {
 	case 1://C
-		return 4L * (mV - 424) / 25;    // Vo(mV) = (6.25*T) + 424 -> T = (Vo - 424) * 100 / 625
+		return (4L * (mV - 424) / 25)+ CALIBRATION_VAL ;    // Vo(mV) = (6.25*T) + 424 -> T = (Vo - 424) * 100 / 625
 	break;
 	case 2://K
-		return (4L * (mV - 424) / 25) + 273; //C + 273 = K
+		return (4L * (mV - 424) / 25) + 273 + CALIBRATION_VAL; //C + 273 = K
 	break;
 	case 3://F
-		return ((9/5) * (4L * (mV - 424) / 25)) + 32; // (9/5)C + 32 = F
+		return ((9/5) * ((4L * (mV - 424) / 25)+ CALIBRATION_VAL)) + 32; // (9/5)C + 32 = F
 	break;
   };
 }
