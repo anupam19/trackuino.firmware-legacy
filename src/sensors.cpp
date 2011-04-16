@@ -97,7 +97,7 @@ int sensors_lm60(int powerPin, int readPin)
 		return (4L * (mV - 424) / 25) + 273 + CALIBRATION_VAL; //C + 273 = K
 	break;
 	case 3://F
-		return ((36L * (mV - 424) / 125) + 32+ CALIBRATION_VAL; // (9/5)C + 32 = F
+		return (36L * (mV - 424) / 125) + 32+ CALIBRATION_VAL; // (9/5)C + 32 = F
 	break;
   };
 }
