@@ -253,7 +253,7 @@ bool Gps::term_complete()
     case 107: // Speed (GPRMC)
       // TODO: This is highly dependant on the venus 634 flpx GPS, where course/speed
       // is already left-padded with zeros. 
-      strncpy(_new_speed, _term, 3);
+      strncpy(_new_speed, _term + 1, 3);
       _new_speed[3] = '\0';
       break;
     case 108: // Course (GPRMC)
