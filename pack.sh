@@ -17,6 +17,7 @@ export COPYFILE_DISABLE=true
 (cd src; make clean)
 (cd lib; make clean)
 rm -f eagle/*.b#? eagle/*.s#?
+rm -f eagle/shield/*.b#? eagle/shield/*.s#?
 rm -f eagle/trackuino-avr.{GBL,GBO,GBS,GTL,GTO,GTS,TXT,dri,gpi,GTP}
 
 # build arduino IDE package
@@ -26,7 +27,7 @@ cp src/*.{cpp,h} $dst/trackuino
 rm $dst/trackuino/main.cpp
 mv $dst/trackuino/trackuino.cpp $dst/trackuino/trackuino.pde
 mkdir $dst/eagle
-cp eagle/* $dst/eagle
+cp eagle/*.* $dst/eagle
 cp LICENSE $dst/LICENSE.txt
 cp README.ide-version  $dst/README.txt
 cp WHATSNEW $dst/WHATSNEW.txt
@@ -41,7 +42,9 @@ rm -rf tmp
 # build makefile-based package for use with gcc-avr
 dst=tmp/trackuino-gcc-$version
 mkdir -p $dst
-cp -r WHATSNEW LICENSE include src Makefile.inc Makefile.user lib eagle $dst
+cp -r WHATSNEW LICENSE include src Makefile.inc Makefile.user lib $dst
+mkdir $dst/eagle
+cp eagle/*.* $dst/eagle
 cp README.gcc-version $dst/README
 test -f trackuino-gcc-$version.tgz && rm trackuino-gcc-$version.tgz
 (cd tmp; tar -cvz --exclude=.* -f ../trackuino-gcc-$version.tgz *)
