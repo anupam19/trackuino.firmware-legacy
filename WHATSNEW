@@ -1,0 +1,23 @@
+Version 1.2 - 2011/06/09
+------------------------
+
+ * FIX: APRS messages reported 1/10th of the actual speed
+
+ * NEW: Switch in config.h between celsius/farenheit/kelvin temperatures
+
+Version 1.1 - 2011/01/12
+------------------------
+
+ * FIX: Eagle files: use soldermask under MOSFET Q5 as heat sink
+
+ * FIX: TX LED's pin wasn't properly set as an output
+
+ * FIX: Move code into the sketch's directory to avoid library clutter
+
+ * NEW: Read internal/external temperatures from LM60 sensors
+
+ 
+Version 20100706
+----------------
+
+ * First public release
