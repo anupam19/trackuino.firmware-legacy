@@ -133,7 +133,7 @@ int sensors_uv_ray()
 
 int sensors_gamma_ray()
 {
-  // Some day...
+  // http://www.cooking-hacks.com/index.php/documentation/tutorials/geiger-counter-arduino-radiation-sensor-board
   return 0;
 }
 

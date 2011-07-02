@@ -18,6 +18,7 @@
 // Trackuino custom libs
 #include "aprs.h"
 #include "ax25.h"
+#include "buzzer.h"
 #include "config.h"
 #include "debug.h"
 #include "gps.h"
@@ -33,7 +34,6 @@
 #include <avr/power.h>
 #include <avr/sleep.h>
 
-Gps gps;
 unsigned long next_tx_millis;
 
 void disable_bod_and_sleep()
@@ -65,8 +65,9 @@ void power_save()
 {
   /* Enter power saving mode. SLEEP_MODE_IDLE is the least saving
    * mode, but it's the only one that will keep the UART running.
-   * In addition, we need timer0 to keep track of time and timer2
-   * to keep pwm output at its rest voltage.
+   * In addition, we need timer0 to keep track of time, timer 1
+   * to drive the buzzer and timer2 to keep pwm output at its rest
+   * voltage.
    */
 
   set_sleep_mode(SLEEP_MODE_IDLE);
@@ -74,9 +75,6 @@ void power_save()
   power_adc_disable();
   power_spi_disable();
   power_twi_disable();
-  if (! modem_busy()) {  // Don't let timer 1 sleep if we're txing.
-    power_timer1_disable();
-  }
 
   sleep_mode();    // Go to sleep
   
@@ -87,25 +85,36 @@ void power_save()
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(GPS_BAUDRATE);
+#ifdef DEBUG
+  Serial.println("RESET");
+#endif
   modem_setup();
+  buzzer_setup();
   sensors_setup();
+  gps_setup();
+
+  // Schedule the next transmission within APRS_DELAY ms
   next_tx_millis = millis() + APRS_DELAY;
 }
 
 void loop()
 {
   int c;
-  bool valid_gps_data;
 
   if (millis() >= next_tx_millis) {
-    aprs_send(gps);
+    aprs_send();
     next_tx_millis = millis() + APRS_PERIOD;
   }
   
   if (Serial.available()) {
     c = Serial.read();
-    valid_gps_data = gps.encode(c);
+    if (gps_decode(c)) {
+      if (gps_altitude > BUZZER_ALTITUDE)
+        buzzer_off();   // In space, no one can hear you buzz
+      else
+        buzzer_on();
+    }
   } else {
     power_save();
   }

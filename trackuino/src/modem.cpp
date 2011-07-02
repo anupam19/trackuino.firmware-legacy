@@ -37,15 +37,15 @@
 #include <avr/interrupt.h>
 #include <avr/io.h>
 
-#if PWM_PIN == 3
+#if AUDIO_PIN == 3
 #  define OCR2 OCR2B
 #endif
-#if PWM_PIN == 11
+#if AUDIO_PIN == 11
 #  define OCR2 OCR2A
 #endif
 
-
-const unsigned char sine_table[] = {
+// Module Constants
+static const unsigned char sine_table[] = {
   127, 129, 130, 132, 133, 135, 136, 138, 139, 141, 143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 
   159, 161, 163, 164, 166, 167, 168, 170, 171, 173, 174, 176, 177, 179, 180, 182, 183, 184, 186, 187, 188, 
   190, 191, 193, 194, 195, 197, 198, 199, 200, 202, 203, 204, 205, 207, 208, 209, 210, 211, 213, 214, 215, 
@@ -73,34 +73,6 @@ const unsigned char sine_table[] = {
   115, 116, 118, 119, 121, 122, 124, 125  
 };
 
-// Globals
-int current_sample_in_baud;
-int go = 0;
-int test = 0;
-unsigned int phase_delta;     // 1200/2200 for standard AX.25
-unsigned int phase;           // Fixed point 9.7 (2PI = TABLE_SIZE)
-int packet_pos;
-int test_amplitude;
-int test_frequency;
-int packet_size = 0;
-unsigned char packet[512];
-
-// The radio (class defined in config.h)
-RADIO_CLASS radio;
-
-// Constants
-const unsigned char REST_DUTY       = sine_table[0];
-const int TABLE_SIZE                = sizeof(sine_table);
-const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
-const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
-const int LED_PIN                   = 13;
-const int SPEAKER_PIN               = PWM_PIN;
-const int BAUD_RATE                 = 1200;
-const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
-const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
-const unsigned int PHASE_DELTA_2200 = (((TABLE_SIZE * 2200L) << 7) / PLAYBACK_RATE);
-
-
 /* The sine_table is the carrier signal. To achieve phase continuity, each tone
  * starts at the index where the previous one left off. By changing the stride of
  * the index (phase_delta) we get 1200 or 2200 Hz. The PHASE_DELTA_XXXX values
@@ -113,12 +85,41 @@ const unsigned int PHASE_DELTA_2200 = (((TABLE_SIZE * 2200L) << 7) / PLAYBACK_RA
  * PHASE_DELTA_Fg = Tt*(Fg/Fm)
  */
 
+static const unsigned char REST_DUTY       = sine_table[0];
+static const int TABLE_SIZE                = sizeof(sine_table);
+static const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
+static const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
+static const int LED_PIN                   = 13;
+static const int BAUD_RATE                 = 1200;
+static const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
+static const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
+static const unsigned int PHASE_DELTA_2200 = (((TABLE_SIZE * 2200L) << 7) / PLAYBACK_RATE);
+
+
+// Module globals
+static int current_sample_in_baud;
+static bool go = false;
+static bool test = false;
+static unsigned int phase_delta;     // 1200/2200 for standard AX.25
+static unsigned int phase;           // Fixed point 9.7 (2PI = TABLE_SIZE)
+static int packet_pos;
+static int test_amplitude;
+static int test_frequency;
+
+// The radio (class defined in config.h)
+static RADIO_CLASS radio;
+
+// Exported globals
+int modem_packet_size = 0;
+unsigned char modem_packet[MODEM_MAX_PACKET];
+
+
 void modem_setup()
 {
   // Configure pins
   pinMode(PTT_PIN, OUTPUT);
   digitalWrite(PTT_PIN, LOW);
-  pinMode(SPEAKER_PIN, OUTPUT);
+  pinMode(AUDIO_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
 
   // Start radio
@@ -134,14 +135,14 @@ void modem_setup()
   TCCR2A |= _BV(WGM21) | _BV(WGM20);
   TCCR2B &= ~_BV(WGM22);
 
-#if PWM_PIN == 11
+#if AUDIO_PIN == 11
   // Do non-inverting PWM on pin OC2A (arduino pin 11) (p.159)
   // OC2B (arduino pin 3) stays in normal port operation:
   // COM2A1=1, COM2A0=0, COM2B1=0, COM2B0=0
   TCCR2A = (TCCR2A | _BV(COM2A1)) & ~(_BV(COM2A0) | _BV(COM2B1) | _BV(COM2B0));
 #endif  
 
-#if PWM_PIN == 3
+#if AUDIO_PIN == 3
   // Do non-inverting PWM on pin OC2B (arduino pin 3) (p.159).
   // OC2A (arduino pin 11) stays in normal port operation: 
   // COM2B1=1, COM2B0=0, COM2A1=0, COM2A0=0
@@ -193,7 +194,7 @@ void modem_flush_frame()
   phase = 0;
   packet_pos = 0;
   current_sample_in_baud = 0;
-  go = 1;
+  go = true;
   
   modem_start();
 }
@@ -203,7 +204,7 @@ modem_test()
 {
   test_amplitude = 0;
   test_frequency = 1;
-  test = 1;
+  test = true;
   
   modem_start();
 }
@@ -212,14 +213,14 @@ modem_test()
 // This is called at PLAYBACK_RATE Hz to load the next sample.
 ISR(TIMER2_OVF_vect) {
   if (go) {
-    if (packet_pos == packet_size) {
-      go = 0;
+    if (packet_pos == modem_packet_size) {
+      go = false;
       modem_stop();
       return;
     }
     // If sent SAMPLES_PER_BAUD already, go to the next bit
     if (current_sample_in_baud == 0) {
-      if ((packet[packet_pos >> 3] & (1 << (packet_pos & 7))) == 0) {
+      if ((modem_packet[packet_pos >> 3] & (1 << (packet_pos & 7))) == 0) {
         // Toggle tone (1200<>2200)
         phase_delta ^= (PHASE_DELTA_1200 ^ PHASE_DELTA_2200);
       }
@@ -240,6 +241,7 @@ ISR(TIMER2_OVF_vect) {
     // after covering the freq range 0-255
     if (test_frequency > 255) {
       OCR2 = 127;
+      test = false;
       modem_stop();
       test_amplitude = 0;
       return;
