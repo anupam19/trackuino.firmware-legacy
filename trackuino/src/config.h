@@ -239,6 +239,11 @@
 // Debug
 // --------------------------------------------------------------------------
 
+// This is the LED pin (13 on Arduinos). The LED will be on while the AVR is
+// running and off while it's sleeping, so its brightness gives an indication
+// of the activity.
+#define LED_PIN                 13
+
 // Debug info includes gps sentence validation and AX.25 frame printouts. It
 // can be used for GPS compatibility or general firmware tests without a
 // radio. Just take into account:

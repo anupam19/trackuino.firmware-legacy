@@ -88,8 +88,6 @@ static const unsigned char sine_table[] = {
 static const unsigned char REST_DUTY       = sine_table[0];
 static const int TABLE_SIZE                = sizeof(sine_table);
 static const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
-static const int TIMER1_DIVIDER            = F_CPU / PLAYBACK_RATE;
-static const int LED_PIN                   = 13;
 static const int BAUD_RATE                 = 1200;
 static const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
 static const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
@@ -120,7 +118,6 @@ void modem_setup()
   pinMode(PTT_PIN, OUTPUT);
   digitalWrite(PTT_PIN, LOW);
   pinMode(AUDIO_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
 
   // Start radio
   radio.setup();
@@ -163,8 +160,6 @@ void modem_start()
  
   // Enable interrupt when TCNT2 reaches TOP (0xFF) (p.151, 163)
   TIMSK2 |= _BV(TOIE2);
-
-  digitalWrite(LED_PIN, HIGH);
 }
 
 
@@ -178,8 +173,6 @@ void modem_stop()
   
   // Disable playback per-sample interrupt.
   TIMSK2 &= ~_BV(TOIE2);
-
-  digitalWrite(LED_PIN, LOW);
 }
 
 int

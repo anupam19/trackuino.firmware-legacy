@@ -55,7 +55,7 @@ void buzzer_setup()
   // Set duty cycle = 50%
   OCR1 = PWM_PERIOD / 2;
 
-  // Enable interrupts
+  // Enable interrupts on timer overflow
   TIMSK1 |= _BV(TOIE1);
 }
 
@@ -68,7 +68,7 @@ void buzzer_on()
 void buzzer_off()
 {
   // Stop the timer (CS1=0)
-  TCCR1B &= ~(_BV(CS10) | _BV(CS11));
+  TCCR1B &= ~(_BV(CS10) | _BV(CS11) | _BV(CS12));
 }
 
 // Interrupt Service Routine for TIMER1. This is used to switch between the

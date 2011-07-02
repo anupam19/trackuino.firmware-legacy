@@ -76,15 +76,19 @@ void power_save()
   power_spi_disable();
   power_twi_disable();
 
+  digitalWrite(LED_PIN, LOW);
   sleep_mode();    // Go to sleep
+  digitalWrite(LED_PIN, HIGH);
   
   sleep_disable();  // Resume after wake up
   power_all_enable();
+
 }
 
 
 void setup()
 {
+  pinMode(LED_PIN, OUTPUT);
   Serial.begin(GPS_BAUDRATE);
 #ifdef DEBUG
   Serial.println("RESET");
