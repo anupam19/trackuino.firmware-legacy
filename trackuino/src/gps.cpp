@@ -24,6 +24,7 @@
 // Module declarations
 static void parse_sentence_type(const char * token);
 static void parse_time(const char *token);
+static void parse_status(const char *token);
 static void parse_lat(const char *token);
 static void parse_lat_hemi(const char *token);
 static void parse_lon(const char *token);
@@ -68,7 +69,7 @@ static const t_nmea_parser gga_parsers[] = {
 static const t_nmea_parser rmc_parsers[] = {
   NULL,             // $GPRMC
   parse_time,       // Time
-  NULL,             // A=active, V=void
+  parse_status,     // A=active, V=void
   parse_lat,        // Latitude,
   parse_lat_hemi,   // N/S
   parse_lon,        // Longitude
@@ -92,6 +93,7 @@ static unsigned char their_checksum = 0;
 static char token[16];
 static int num_tokens = 0;
 static unsigned int offset = 0;
+static bool active = false;
 static char gga_time[7], rmc_time[7];
 static char new_time[7];
 static float new_lat;
@@ -140,6 +142,15 @@ void parse_time(const char *token)
 {
   // Time can have decimals (fractions of a second), but we only take HHMMSS
   strncpy(new_time, token, 6);
+}
+
+void parse_status(const char *token)
+{
+  // "A" = active, "V" = void. We shoud disregard void sentences
+  if (strcmp(token, "A") == 0)
+    active = true;
+  else
+    active = false;
 }
 
 void parse_lat(const char *token)
@@ -229,7 +240,7 @@ bool gps_decode(char c)
         // messages with the same timestamp.
         switch (sentence_type) {
           case SENTENCE_UNK:
-            break;
+            break;    // Keeps gcc happy
           case SENTENCE_GGA:
             strcpy(gga_time, new_time);
             break;
@@ -238,13 +249,27 @@ bool gps_decode(char c)
             break;
         }
 
-        // Regression test scenario: if we continue after a random (non
-        // GGA/RMC) sentence, and we've just been powered on, we'll end up
-        // reporting empty lat/lon because new_lat/new_lon haven't been
-        // filled out yet. So...
+        // Valid position scenario:
+        //
+        // 1. The timestamps of the two previous GGA/RMC sentences must match.
+        //
+        // 2. We just processed a known (GGA/RMC) sentence. Suppose the
+        //    contrary: after starting up this module, gga_time and rmc_time
+        //    are both equal (they're both initialized to ""), so (1) holds
+        //    and we wrongly report a valid position.
+        //
+        // 3. The GPS has a valid fix. For some reason, the Venus 634FLPX
+        //    reports 24 deg N, 121 deg E (the middle of Taiwan) until a valid
+        //    fix is acquired:
+        //
+        //    $GPGGA,120003.000,2400.0000,N,12100.0000,E,0,00,0.0,0.0,M,0.0,M,,0000**69 (OK!)
+        //    $GPGSA,A,1,,,,,,,,,,,,,0.0,0.0,0.0**30 (OK!)
+        //    $GPRMC,120003.000,V,2400.0000,N,12100.0000,E,000.0,000.0,280606,,,N**78 (OK!)
+        //    $GPVTG,000.0,T,,M,000.0,N,000.0,K,N**02 (OK!)
 
-        if (sentence_type != SENTENCE_UNK         // Ingnore unknown sentences
-            && strcmp(gga_time, rmc_time) == 0) {
+        if (sentence_type != SENTENCE_UNK &&      // Known sentence?
+            strcmp(gga_time, rmc_time) == 0 &&    // RMC/GGA times match?
+            active) {                             // Valid fix?
           // Atomically merge data from the two sentences
           strcpy(gps_time, new_time);
           gps_lat = new_lat;
