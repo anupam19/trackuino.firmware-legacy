@@ -254,7 +254,7 @@ bool gps_decode(char c)
           gps_course = new_course;
           gps_speed = new_speed;
           gps_altitude = new_altitude;
-          ret =  true;
+          ret = true;
         }
       }
 #ifdef DEBUG
