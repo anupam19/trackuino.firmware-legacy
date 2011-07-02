@@ -15,267 +15,314 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/* Big credit to Mikal Hart and: http://arduiniana.org/libraries/tinygps/,
- * from which most of the code has been taken.
- */
-
+#include "config.h"
 #include "gps.h"
 #include <WProgram.h>
+#include <stdlib.h>
 #include <string.h>
 
-#define _GPRMC_TERM   "GPRMC"
-#define _GPGGA_TERM   "GPGGA"
+// Module declarations
+static void parse_sentence_type(const char * token);
+static void parse_time(const char *token);
+static void parse_lat(const char *token);
+static void parse_lat_hemi(const char *token);
+static void parse_lon(const char *token);
+static void parse_lon_hemi(const char *token);
+static void parse_speed(const char *token);
+static void parse_course(const char *token);
+static void parse_altitude(const char *token);
 
-Gps::Gps()
-:  _parity(0)
-,  _is_checksum_term(false)
-,  _sentence_type(_GPS_SENTENCE_OTHER)
-,  _term_number(0)
-,  _term_offset(0)
-,  _gps_fixed(false)
-{
-  strcpy(_lat, "0000.00N");
-  strcpy(_lon, "00000.00W");
-  strcpy(_course, "000");
-  strcpy(_speed, "000");
-  strcpy(_altitude, "000000");
-  strcpy(_date, "010180");
-  strcpy(_rmc_time, "000000h");
-  strcpy(_gga_time, "000000h");
-  _term[0] = '\0';
-}
+// Module types
+typedef void (*t_nmea_parser)(const char *token);
 
-//
-// public methods
-//
-
-bool Gps::encode(char c)
-{
-  bool valid_sentence = false;
-
-  switch(c)
-  {
-    case ',': // term terminators
-      _parity ^= c;
-    case '\r':
-    case '\n':
-    case '*':
-      if (_term_offset < sizeof(_term))
-      {
-        _term[_term_offset] = 0;
-        valid_sentence = term_complete();
-      }
-      ++_term_number;
-      _term_offset = 0;
-      _is_checksum_term = c == '*';
-      return valid_sentence;
-      
-    case '$': // sentence begin
-      _term_number = _term_offset = 0;
-      _parity = 0;
-      _sentence_type = _GPS_SENTENCE_OTHER;
-      _is_checksum_term = false;
-      _gps_fixed = false;
-      return valid_sentence;
-  }
-  
-  // ordinary characters
-  if (_term_offset < sizeof(_term) - 1)
-    _term[_term_offset++] = c;
-  if (!_is_checksum_term)
-    _parity ^= c;
-  
-  return valid_sentence;
-}
+enum t_sentence_type {
+  SENTENCE_UNK,
+  SENTENCE_GGA,
+  SENTENCE_RMC
+};
 
 
-//
-// internal utilities
-//
-int Gps::from_hex(char a) 
+// Module constants
+static const t_nmea_parser unk_parsers[] = {
+  parse_sentence_type,    // $GPxxx
+};
+
+static const t_nmea_parser gga_parsers[] = {
+  NULL,             // $GPGGA
+  parse_time,       // Time
+  NULL,             // Latitude
+  NULL,             // N/S
+  NULL,             // Longitude
+  NULL,             // E/W
+  NULL,             // Fix quality 
+  NULL,             // Number of satellites
+  NULL,             // Horizontal dilution of position
+  parse_altitude,   // Altitude
+  NULL,             // "M" (mean sea level)
+  NULL,             // Height of GEOID (MSL) above WGS84 ellipsoid
+  NULL,             // "M" (mean sea level)
+  NULL,             // Time in seconds since the last DGPS update
+  NULL              // DGPS station ID number
+};
+
+static const t_nmea_parser rmc_parsers[] = {
+  NULL,             // $GPRMC
+  parse_time,       // Time
+  NULL,             // A=active, V=void
+  parse_lat,        // Latitude,
+  parse_lat_hemi,   // N/S
+  parse_lon,        // Longitude
+  parse_lon_hemi,   // E/W
+  parse_speed,      // Speed over ground in knots
+  parse_course,     // Track angle in degrees (true)
+  NULL,             // Date (DDMMYY)
+  NULL,             // Magnetic variation
+  NULL              // E/W
+};
+
+static const int NUM_OF_UNK_PARSERS = (sizeof(unk_parsers) / sizeof(t_nmea_parser));
+static const int NUM_OF_GGA_PARSERS = (sizeof(gga_parsers) / sizeof(t_nmea_parser));
+static const int NUM_OF_RMC_PARSERS = (sizeof(rmc_parsers) / sizeof(t_nmea_parser));
+
+// Module variables
+static t_sentence_type sentence_type = SENTENCE_UNK;
+static bool at_checksum = false;
+static unsigned char our_checksum = '$';
+static unsigned char their_checksum = 0;
+static char token[16];
+static int num_tokens = 0;
+static unsigned int offset = 0;
+static char gga_time[7], rmc_time[7];
+static char new_time[7];
+static float new_lat;
+static float new_lon;
+static char new_aprs_lat[9];
+static char new_aprs_lon[10];
+static float new_course;
+static float new_speed;
+static float new_altitude;
+
+// Public (extern) variables, readable from other modules
+char gps_time[7];       // HHMMSS
+float gps_lat = 0;
+float gps_lon = 0;
+char gps_aprs_lat[9];
+char gps_aprs_lon[10];
+float gps_course = 0;
+float gps_speed = 0;
+float gps_altitude = 0;
+
+// Module functions
+unsigned char from_hex(char a) 
 {
   if (a >= 'A' && a <= 'F')
     return a - 'A' + 10;
   else if (a >= 'a' && a <= 'f')
     return a - 'a' + 10;
-  else
+  else if (a >= '0' && a <= '9')
     return a - '0';
+  else
+    return 0;
 }
 
-void Gps::truncate(char *dst, const char *src)
+void parse_sentence_type(const char *token)
 {
-  int i;
-  for (i = 0; src[i] && src[i] != '.'; i++) {
-    dst[i] = src[i];
-  }
-  dst[i] = '\0';  
-}
-
-
-// TODO: rewrite this so that it doesn't pad with a final 0 (like left_pad(..., long))
-void Gps::left_pad(char *dst, const char *src, int dst_len)
-{
-  int src_len = strlen(src);
-    
-  if (dst_len < src_len) {
-    // Overflow: fill up with nines
-    while (dst_len) dst[--dst_len] = '9';
+  if (strcmp(token, "$GPGGA") == 0) {
+    sentence_type = SENTENCE_GGA;
+  } else if (strcmp(token, "$GPRMC") == 0) {
+    sentence_type = SENTENCE_RMC;
   } else {
-    while (src_len) dst[--dst_len] = src[--src_len];
-    while (dst_len) dst[--dst_len] = '0';
+    sentence_type = SENTENCE_UNK;
   }
 }
 
-void Gps::left_pad(char *dst, long val, int dst_len)
+void parse_time(const char *token)
 {
-  while (dst_len--) {
-    dst[dst_len] = (val % 10) + '0';
-    val /= 10;
+  // Time can have decimals (fractions of a second), but we only take HHMMSS
+  strncpy(new_time, token, 6);
+}
+
+void parse_lat(const char *token)
+{
+  // Parses latitude in the format "DD" + "MM" (+ ".M{...}M")
+  char degs[3];
+  if (strlen(token) >= 4) {
+    degs[0] = token[0];
+    degs[1] = token[1];
+    degs[2] = '\0';
+    new_lat = atof(degs) + atof(token + 2) / 60;
   }
+  // APRS-ready latitude
+  strncpy(new_aprs_lat, token, 7);
+}
+
+void parse_lat_hemi(const char *token)
+{
+  if (token[0] == 'S')
+    new_lat = -new_lat;
+  new_aprs_lat[7] = token[0];
+  new_aprs_lon[8] = '\0';
+}
+
+void parse_lon(const char *token)
+{
+  // Longitude is in the format "DDD" + "MM" (+ ".M{...}M")
+  char degs[4];
+  if (strlen(token) >= 5) {
+    degs[0] = token[0];
+    degs[1] = token[1];
+    degs[2] = token[2];
+    degs[3] = '\0';
+    new_lon = atof(degs) + atof(token + 3) / 60;
+  }
+  // APRS-ready longitude
+  strncpy(new_aprs_lon, token, 8);
+}
+
+void parse_lon_hemi(const char *token)
+{
+  if (token[0] == 'W')
+    new_lon = -new_lon;
+  new_aprs_lon[8] = token[0];
+  new_aprs_lon[9] = '\0';
+}
+
+void parse_speed(const char *token)
+{
+  new_speed = atof(token);
+}
+
+void parse_course(const char *token)
+{
+  new_course = atof(token);
+}
+
+void parse_altitude(const char *token)
+{
+  new_altitude = atof(token);
 }
 
 
-unsigned long Gps::parse_decimal()
-{
-  char *p = _term;
-  bool isneg = *p == '-';
-  if (isneg) ++p;
-  unsigned long ret = 100UL * gps_atol(p);
-  while (gps_isdigit(*p)) ++p;
-  if (*p == '.')
-  {
-    if (gps_isdigit(p[1]))
-    {
-      ret += 10 * (p[1] - '0');
-      if (gps_isdigit(p[2]))
-        ret += p[2] - '0';
-    }
-  }
-  return isneg ? -ret : ret;
+//
+// Exported functions
+//
+void gps_setup() {
+  strcpy(gps_time, "000000");
+  strcpy(gps_aprs_lat, "0000.00N");
+  strcpy(gps_aprs_lon, "00000.00E");
 }
 
-long Gps::gps_atol(const char *str)
+bool gps_decode(char c)
 {
-  long ret = 0;
-  while (gps_isdigit(*str))
-    ret = 10 * ret + *str++ - '0';
+  int ret = false;
+
+  switch(c) {
+    case '\r':
+    case '\n':
+      // End of sentence
+
+      if (num_tokens && our_checksum == their_checksum) {
+#ifdef DEBUG
+        Serial.print(" (OK!)");
+#endif
+        // Return a valid position only when we've got two rmc and gga
+        // messages with the same timestamp.
+        switch (sentence_type) {
+          case SENTENCE_UNK:
+            break;
+          case SENTENCE_GGA:
+            strcpy(gga_time, new_time);
+            break;
+          case SENTENCE_RMC:
+            strcpy(rmc_time, new_time);
+            break;
+        }
+
+        // Regression test scenario: if we continue after a random (non
+        // GGA/RMC) sentence, and we've just been powered on, we'll end up
+        // reporting empty lat/lon because new_lat/new_lon haven't been
+        // filled out yet. So...
+
+        if (sentence_type != SENTENCE_UNK         // Ingnore unknown sentences
+            && strcmp(gga_time, rmc_time) == 0) {
+          // Atomically merge data from the two sentences
+          strcpy(gps_time, new_time);
+          gps_lat = new_lat;
+          gps_lon = new_lon;
+          strcpy(gps_aprs_lat, new_aprs_lat);
+          strcpy(gps_aprs_lon, new_aprs_lon);
+          gps_course = new_course;
+          gps_speed = new_speed;
+          gps_altitude = new_altitude;
+          ret =  true;
+        }
+      }
+#ifdef DEBUG
+      if (num_tokens)
+        Serial.println();
+#endif
+      at_checksum = false;        // CR/LF signals the end of the checksum
+      our_checksum = '$';         // Reset checksums
+      their_checksum = 0;
+      offset = 0;                 // Prepare for the next incoming sentence
+      num_tokens = 0;
+      sentence_type = SENTENCE_UNK;
+      break;
+    
+    case '*':
+      // Begin of checksum and process token (ie. do not break)
+      at_checksum = true;
+      our_checksum ^= c;
+#ifdef DEBUG
+      Serial.print(c);
+#endif
+
+    case ',':
+      // Process token
+      token[offset] = '\0';
+      our_checksum ^= c;  // Checksum the ',', undo the '*'
+
+      // Parse token
+      switch (sentence_type) {
+        case SENTENCE_UNK:
+          if (num_tokens < NUM_OF_UNK_PARSERS && unk_parsers[num_tokens])
+            unk_parsers[num_tokens](token);
+          break;
+        case SENTENCE_GGA:
+          if (num_tokens < NUM_OF_GGA_PARSERS && gga_parsers[num_tokens])
+            gga_parsers[num_tokens](token);
+          break;
+        case SENTENCE_RMC:
+          if (num_tokens < NUM_OF_RMC_PARSERS && rmc_parsers[num_tokens])
+            rmc_parsers[num_tokens](token);
+          break;
+      }
+
+      // Prepare for next token
+      num_tokens++;
+      offset = 0;
+#ifdef DEBUG
+      Serial.print(c);
+#endif
+      break;
+
+    default:
+      // Any other character
+      if (at_checksum) {
+        // Checksum value
+        their_checksum = their_checksum * 16 + from_hex(c);
+      } else {
+        // Regular NMEA data
+        if (offset < 15) {  // Avoid buffer overrun (tokens can't be > 15 chars)
+          token[offset] = c;
+          offset++;
+          our_checksum ^= c;
+        }
+      }
+#ifdef DEBUG
+      Serial.print(c);
+#endif
+  }
   return ret;
 }
 
-
-// Processes a just-completed term
-// Returns true if new sentence has just passed checksum test and is validated
-bool Gps::term_complete()
-{
-  if (_is_checksum_term)
-  {
-    unsigned char checksum = 16 * from_hex(_term[0]) + from_hex(_term[1]);
-    if (checksum == _parity)
-    {
-      if (_gps_fixed)
-      {
-        _last_time_fix = _new_time_fix;
-        _last_position_fix = _new_position_fix;
-        
-        switch(_sentence_type)
-        {
-          case _GPS_SENTENCE_GPRMC:
-            strcpy(_rmc_time, _new_time);
-            strcpy(_date,     _new_date);
-            strcpy(_lat,      _new_lat);
-            strcpy(_lon,      _new_lon);
-            strcpy(_speed,    _new_speed);
-            strcpy(_course,   _new_course);
-            break;
-          case _GPS_SENTENCE_GPGGA:
-            strcpy(_gga_time, _new_time);
-            strcpy(_lat,      _new_lat);
-            strcpy(_lon,      _new_lon);
-            strcpy(_altitude, _new_altitude);
-            break;
-        }
-        
-        // Return a valid object only when we've got two rmc and gga
-        // messages with the same timestamp
-        if (! strcmp(_gga_time, _rmc_time))
-          return true;
-      }
-    }
-    return false;
-  }
-  
-  // the first term determines the sentence type
-  if (_term_number == 0)
-  {
-    if (!strcmp(_term, _GPRMC_TERM))
-      _sentence_type = _GPS_SENTENCE_GPRMC;
-    else if (!strcmp(_term, _GPGGA_TERM))
-      _sentence_type = _GPS_SENTENCE_GPGGA;
-    else
-      _sentence_type = _GPS_SENTENCE_OTHER;
-    return false;
-  }
-  
-  if (_sentence_type != _GPS_SENTENCE_OTHER && _term[0])
-    switch((_sentence_type == _GPS_SENTENCE_GPGGA ? 200 : 100) + _term_number)
-  {
-    case 101: // Time in both sentences
-    case 201:
-      strncpy(_new_time, _term, 6);
-      _new_time[6] = 'h';
-      _new_time[7] = '\0';
-      _new_time_fix = millis();
-      break;
-    case 102: // GPRMC validity ('A'=fixed, 'V'=no fix yet)
-      _gps_fixed = _term[0] == 'A';
-      break;
-    case 103: // Latitude
-    case 202:
-      strncpy(_new_lat, _term, 7);  // APRS format: 3020.12N (DD, MM.MM, Hemisphere)
-      _new_lat[7] = '\0';
-      _new_position_fix = millis();
-      break;
-    case 104: // N/S
-    case 203:
-      _new_lat[7] = _term[0];
-      _new_lat[8] = '\0';
-      break;
-    case 105: // Longitude
-    case 204:
-      strncpy(_new_lon, _term, 8);  // APRS format: 00143.13W (DD, MM.MM, Hemisphere)
-      _new_lon[8] = '\0';
-      break;
-    case 106: // E/W
-    case 205:
-      _new_lon[8] = _term[0];
-      _new_lon[9] = '\0';
-      break;
-    case 107: // Speed (GPRMC)
-      // TODO: This is highly dependant on the venus 634 flpx GPS, where course/speed
-      // is already left-padded with zeros. 
-      strncpy(_new_speed, _term + 1, 3);
-      _new_speed[3] = '\0';
-      break;
-    case 108: // Course (GPRMC)
-      strncpy(_new_course, _term, 3);
-      _new_course[3] = '\0';
-      break;
-    case 109: // Date (GPRMC)
-      strncpy(_new_date, _term, 6);
-      _new_date[6] = '\0';
-      break;
-    case 206: // Fix data (GPGGA)
-      _gps_fixed = _term[0] > '0';
-      break;
-    case 209: // Altitude (GPGGA)
-      long altitude = parse_decimal();  // altitude in cm
-      // 10000 ft = 3048 m
-      // x ft = altitude mt --> x = 100 * altitude (in cm) / 3048
-      altitude = (altitude * 25) / 762;  // APRS needs feet
-      left_pad(_new_altitude, altitude, 6);
-      _new_altitude[6] = '\0';
-      break;
-  }
-  
-  return false;
-}

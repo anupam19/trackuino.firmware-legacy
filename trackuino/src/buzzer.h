@@ -15,11 +15,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __APRS_H__
-#define __APRS_H__
+#ifndef __BUZZER_H__
+#define __BUZZER_H__
 
-#include "gps.h"
-
-void aprs_send();
+void buzzer_setup();
+void buzzer_on();
+void buzzer_off();
 
 #endif
