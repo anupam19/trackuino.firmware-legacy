@@ -218,13 +218,13 @@
 // --------------------------------------------------------------------------
 
 // This is the buzzer frequency. Choose one that maximizes the output volume
-// according to your buzzer's datasheet.
+// according to your buzzer's datasheet. It must be between L and 65535,
+// where L = F_CPU / 65535 and F_CPU is the clock frequency in hertzs. For
+// Arduinos (16 MHz), that gives a low limit of 245 Hz.
 #define BUZZER_FREQ             895     // Hz
 
-// The buzzer will buzz every BUZZER_ON_TIME seconds (max 65535)
+// These are the number of seconds the buzzer will stay on/off alternately
 #define BUZZER_ON_TIME          2       // secs
-
-// The buzzer will buzz for BUZZER_OFF_TIME seconds (max 65535)
 #define BUZZER_OFF_TIME         2       // secs
 
 // This option disables the buzzer above BUZZER_ALTITUDE meters. This is a
