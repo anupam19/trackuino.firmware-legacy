@@ -15,6 +15,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+// Refuse to compile on arduino version 21 or lower. 22 includes an 
+// optimization of the USART code that is critical for real-time operation.
+#if ARDUINO < 22
+#error "Oops! We need Arduino 22 or later"
+#endif
+
 // Trackuino custom libs
 #include "aprs.h"
 #include "ax25.h"
@@ -90,7 +96,7 @@ void setup()
 {
   pinMode(LED_PIN, OUTPUT);
   Serial.begin(GPS_BAUDRATE);
-#ifdef DEBUG
+#ifdef DEBUG_RESET
   Serial.println("RESET");
 #endif
   modem_setup();
@@ -107,6 +113,11 @@ void loop()
   int c;
 
   if (millis() >= next_tx_millis) {
+    // Show modem ISR stats from the previous transmission
+#ifdef DEBUG_MODEM
+    modem_debug();
+#endif
+
     aprs_send();
     next_tx_millis = millis() + APRS_PERIOD;
   }

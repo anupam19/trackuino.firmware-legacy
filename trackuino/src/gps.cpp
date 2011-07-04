@@ -233,7 +233,7 @@ bool gps_decode(char c)
       // End of sentence
 
       if (num_tokens && our_checksum == their_checksum) {
-#ifdef DEBUG
+#ifdef DEBUG_GPS
         Serial.print(" (OK!)");
 #endif
         // Return a valid position only when we've got two rmc and gga
@@ -282,7 +282,7 @@ bool gps_decode(char c)
           ret = true;
         }
       }
-#ifdef DEBUG
+#ifdef DEBUG_GPS
       if (num_tokens)
         Serial.println();
 #endif
@@ -298,7 +298,7 @@ bool gps_decode(char c)
       // Begin of checksum and process token (ie. do not break)
       at_checksum = true;
       our_checksum ^= c;
-#ifdef DEBUG
+#ifdef DEBUG_GPS
       Serial.print(c);
 #endif
 
@@ -326,7 +326,7 @@ bool gps_decode(char c)
       // Prepare for next token
       num_tokens++;
       offset = 0;
-#ifdef DEBUG
+#ifdef DEBUG_GPS
       Serial.print(c);
 #endif
       break;
@@ -344,7 +344,7 @@ bool gps_decode(char c)
           our_checksum ^= c;
         }
       }
-#ifdef DEBUG
+#ifdef DEBUG_GPS
       Serial.print(c);
 #endif
   }

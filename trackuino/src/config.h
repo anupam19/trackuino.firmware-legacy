@@ -244,9 +244,8 @@
 // of the activity.
 #define LED_PIN                 13
 
-// Debug info includes gps sentence validation and AX.25 frame printouts. It
-// can be used for GPS compatibility or general firmware tests without a
-// radio. Just take into account:
+// Debug info includes printouts from different modules to aid in testing and
+// debugging.
 // 
 // 1. To properly receive debug information, only connect the Arduino RX pin 
 //    to the GPS TX pin, and leave the Arduino TX pin disconnected. 
@@ -256,10 +255,11 @@
 //
 // 3. When flashing the firmware, disconnect the GPS from the RX pin or you
 //    will get errors.
-//
-// Uncomment this if you want debug information printed out to the host
-// computer via serial port.
 
-// #define DEBUG
+// #define DEBUG_GPS    // GPS sentence dump and checksum validation
+// #define DEBUG_AX25   // AX.25 frame dump
+// #define DEBUG_MODEM  // Modem ISR overrun and profiling
+// #define DEBUG_RESET  // AVR reset
+
 
 #endif
