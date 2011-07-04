@@ -6,6 +6,9 @@ include $(ROOT)/Makefile.user
 ############################################################################
 # Variables:
 
+# Arduino libs version
+ARDUINO = 22
+
 # Output Intel HEX files
 FORMAT = ihex
 
@@ -26,7 +29,8 @@ MV			= mv -f
 
 # Flags
 COMMON_FLAGS 	= -gstabs -DF_CPU=$(F_CPU) -I. -I$(ROOT)/include -Os -Wall \
-								-ffunction-sections -fdata-sections -mmcu=$(MCU)
+								-ffunction-sections -fdata-sections -mmcu=$(MCU) \
+								-DARDUINO=$(ARDUINO)
 CFLAGS 				= $(COMMON_FLAGS) -Wstrict-prototypes # -Wa,-adhlns=$(<:.c=.lst),-gstabs
 CXXFLAGS			= $(COMMON_FLAGS) -fno-exceptions # -Wa,-adhlns=$(<:.cpp=.lst),-gstabs
 ASFLAGS				= -Wa,-adhlns=$(<:.S=.lst),-gstabs -mmcu=$(MCU) -x assembler-with-cpp
