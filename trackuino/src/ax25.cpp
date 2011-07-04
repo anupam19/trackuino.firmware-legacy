@@ -64,7 +64,7 @@ ax25_send_byte(unsigned char byte)
 {
   // Wrap around send_byte, but prints debug info
   send_byte(byte);
-#ifdef DEBUG
+#ifdef DEBUG_AX25
   Serial.print((char)byte);
 #endif
 }
@@ -126,7 +126,7 @@ ax25_send_header(const struct s_address *addresses, int num_addresses)
   // Protocol ID: 0xf0 = no layer 3 data
   send_byte(0xf0);
 
-#ifdef DEBUG
+#ifdef DEBUG_AX25
   // Print source callsign
   Serial.println();
   Serial.print(addresses[1].callsign);
@@ -166,7 +166,7 @@ ax25_send_footer()
   
   // Signal the end of frame
   ax25_send_flag();
-#ifdef DEBUG
+#ifdef DEBUG_AX25
   Serial.println();
 #endif
 }

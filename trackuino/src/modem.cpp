@@ -36,6 +36,7 @@
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 
 #if AUDIO_PIN == 3
 #  define OCR2 OCR2B
@@ -45,7 +46,11 @@
 #endif
 
 // Module Constants
-static const unsigned char sine_table[] = {
+
+// This procudes a "warning: only initialized variables can be placed into
+// program memory area", which can be safely ignored:
+// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34734
+PROGMEM const prog_uchar sine_table[512] = {
   127, 129, 130, 132, 133, 135, 136, 138, 139, 141, 143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 
   159, 161, 163, 164, 166, 167, 168, 170, 171, 173, 174, 176, 177, 179, 180, 182, 183, 184, 186, 187, 188, 
   190, 191, 193, 194, 195, 197, 198, 199, 200, 202, 203, 204, 205, 207, 208, 209, 210, 211, 213, 214, 215, 
@@ -70,7 +75,7 @@ static const unsigned char sine_table[] = {
    29,  30,  31,  33,  34,  35,  36,  37,  38,  39,  40,  41,  43,  44,  45,  46,  47,  49,  50,  51,  52, 
    54,  55,  56,  57,  59,  60,  61,  63,  64,  66,  67,  68,  70,  71,  72,  74,  75,  77,  78,  80,  81, 
    83,  84,  86,  87,  88,  90,  91,  93,  95,  96,  98,  99, 101, 102, 104, 105, 107, 108, 110, 111, 113, 
-  115, 116, 118, 119, 121, 122, 124, 125  
+  115, 116, 118, 119, 121, 122, 124, 125
 };
 
 /* The sine_table is the carrier signal. To achieve phase continuity, each tone
@@ -85,32 +90,35 @@ static const unsigned char sine_table[] = {
  * PHASE_DELTA_Fg = Tt*(Fg/Fm)
  */
 
-static const unsigned char REST_DUTY       = sine_table[0];
+static const unsigned char REST_DUTY       = 127;
 static const int TABLE_SIZE                = sizeof(sine_table);
 static const unsigned long PLAYBACK_RATE   = F_CPU / 256;    // 62.5KHz @ F_CPU=16MHz
 static const int BAUD_RATE                 = 1200;
-static const int SAMPLES_PER_BAUD          = (PLAYBACK_RATE / BAUD_RATE);
+static const unsigned char SAMPLES_PER_BAUD= (PLAYBACK_RATE / BAUD_RATE);
 static const unsigned int PHASE_DELTA_1200 = (((TABLE_SIZE * 1200L) << 7) / PLAYBACK_RATE); // Fixed point 9.7
 static const unsigned int PHASE_DELTA_2200 = (((TABLE_SIZE * 2200L) << 7) / PLAYBACK_RATE);
 
 
 // Module globals
-static int current_sample_in_baud;
-static bool go = false;
-static bool test = false;
-static unsigned int phase_delta;     // 1200/2200 for standard AX.25
-static unsigned int phase;           // Fixed point 9.7 (2PI = TABLE_SIZE)
-static int packet_pos;
-static int test_amplitude;
-static int test_frequency;
+static unsigned char current_byte;
+static unsigned char current_sample_in_baud;    // 1 bit = SAMPLES_PER_BAUD samples
+static bool go = false;                         // Modem is on
+static unsigned int phase_delta;                // 1200/2200 for standard AX.25
+static unsigned int phase;                      // Fixed point 9.7 (2PI = TABLE_SIZE)
+static unsigned int packet_pos;                 // Next bit to be sent out
+#ifdef DEBUG_MODEM
+static int overruns = 0;
+static unsigned int slow_isr_time;
+static unsigned int slow_packet_pos;
+static unsigned char slow_sample_in_baud;
+#endif
 
 // The radio (class defined in config.h)
 static RADIO_CLASS radio;
 
 // Exported globals
-int modem_packet_size = 0;
+unsigned int modem_packet_size = 0;
 unsigned char modem_packet[MODEM_MAX_PACKET];
-
 
 void modem_setup()
 {
@@ -153,32 +161,10 @@ void modem_setup()
   OCR2 = REST_DUTY;
 }
 
-void modem_start()
-{
-  // Key the radio
-  radio.ptt_on();
- 
-  // Enable interrupt when TCNT2 reaches TOP (0xFF) (p.151, 163)
-  TIMSK2 |= _BV(TOIE2);
-}
-
-
-void modem_stop()
-{
-  // Output 0v (after DC coupling)
-  OCR2 = REST_DUTY;
-
-  // Release PTT
-  radio.ptt_off();
-  
-  // Disable playback per-sample interrupt.
-  TIMSK2 &= ~_BV(TOIE2);
-}
-
 int
 modem_busy()
 {
-  return go || test;
+  return go;
 }
 
 void modem_flush_frame()
@@ -189,63 +175,83 @@ void modem_flush_frame()
   current_sample_in_baud = 0;
   go = true;
   
-  modem_start();
-}
+  // Key the radio
+  radio.ptt_on();
 
-void
-modem_test()
-{
-  test_amplitude = 0;
-  test_frequency = 1;
-  test = true;
-  
-  modem_start();
-}
+  // Clear the overflow flag, so that the interrupt doesn't go off
+  // immediately and overrun the next one (p.163).
+  TIFR2 |= _BV(TOV2);       // Yeah, writing a 1 clears the flag.
 
+  // Enable interrupt when TCNT2 reaches TOP (0xFF) (p.151, 163)
+  TIMSK2 |= _BV(TOIE2);
+}
 
 // This is called at PLAYBACK_RATE Hz to load the next sample.
 ISR(TIMER2_OVF_vect) {
+
   if (go) {
+
+    // If done sending packet
     if (packet_pos == modem_packet_size) {
-      go = false;
-      modem_stop();
-      return;
+      go = false;             // End of transmission
+      OCR2 = REST_DUTY;       // Output 0v (after DC coupling)
+      radio.ptt_off();        // Release PTT
+      TIMSK2 &= ~_BV(TOIE2);  // Disable playback interrupt.
+      goto end_isr;           // Done, gather ISR stats
     }
+
     // If sent SAMPLES_PER_BAUD already, go to the next bit
-    if (current_sample_in_baud == 0) {
-      if ((modem_packet[packet_pos >> 3] & (1 << (packet_pos & 7))) == 0) {
-        // Toggle tone (1200<>2200)
+    if (current_sample_in_baud == 0) {    // Load up next bit
+      if ((packet_pos & 7) == 0)          // Load up next byte
+        current_byte = modem_packet[packet_pos >> 3];
+      else
+        current_byte = current_byte / 2;  // ">>1" forces int conversion
+      if ((current_byte & 1) == 0) {
+        // Toggle tone (1200 <> 2200)
         phase_delta ^= (PHASE_DELTA_1200 ^ PHASE_DELTA_2200);
       }
+      packet_pos++;
     }
     
     phase += phase_delta;
-    OCR2 = sine_table[(phase >> 7) & (TABLE_SIZE - 1)];
+    OCR2 = pgm_read_byte_near(sine_table + ((phase >> 7) & (TABLE_SIZE - 1)));
     
-    if(++current_sample_in_baud == SAMPLES_PER_BAUD) {
+    if(++current_sample_in_baud == SAMPLES_PER_BAUD) 
       current_sample_in_baud = 0;
-      packet_pos++;
-    }
-    return;
   }
-
-  if (test) {
-    // Output sawteeth signals of increasing frequency. Be done
-    // after covering the freq range 0-255
-    if (test_frequency > 255) {
-      OCR2 = 127;
-      test = false;
-      modem_stop();
-      test_amplitude = 0;
-      return;
-    }
-    if (test_amplitude > 255) {
-      test_amplitude = 0;
-      test_frequency++;
-    }
-    OCR2 = test_amplitude;
-    test_amplitude += test_frequency;
-    return;
+ 
+end_isr:
+#ifdef DEBUG_MODEM
+  unsigned int t = (unsigned int) TCNT2;
+  // Signal overrun if we received an interrupt while processing this one
+  if (TIFR2 & _BV(TOV2)) {
+    overruns++;
+    t += 256;
   }
+  // Keep the slowest execution time in slow_isr_time
+  if (t > slow_isr_time) {
+    slow_isr_time = t;
+    slow_packet_pos = packet_pos;
+    slow_sample_in_baud = current_sample_in_baud;
+  }
+#endif
+  return;
 }
 
+#ifdef DEBUG_MODEM
+void modem_debug()
+{
+  Serial.print("t=");
+  Serial.print(slow_isr_time);
+  Serial.print(", pos=");
+  Serial.print(slow_packet_pos);
+  Serial.print(", sam=");
+  Serial.println(slow_sample_in_baud, DEC);
+  slow_isr_time = 0;
+  if (overruns) {
+    Serial.print("MODEM OVERRUNS: ");
+    Serial.println(overruns);
+    overruns = 0;
+  } 
+}
+#endif
