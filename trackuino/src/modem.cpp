@@ -210,14 +210,15 @@ ISR(TIMER2_OVF_vect) {
         // Toggle tone (1200 <> 2200)
         phase_delta ^= (PHASE_DELTA_1200 ^ PHASE_DELTA_2200);
       }
-      packet_pos++;
     }
     
     phase += phase_delta;
     OCR2 = pgm_read_byte_near(sine_table + ((phase >> 7) & (TABLE_SIZE - 1)));
     
-    if(++current_sample_in_baud == SAMPLES_PER_BAUD) 
+    if(++current_sample_in_baud == SAMPLES_PER_BAUD) {
       current_sample_in_baud = 0;
+      packet_pos++;
+    }
   }
  
 end_isr:
