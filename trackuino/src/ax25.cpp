@@ -39,9 +39,11 @@ static void
 send_byte(unsigned char byte)
 {
   unsigned char i = 0;
-  while (i < 8) {
-    update_crc((byte >> i) & 1);
-    if ((byte >> i) & 1) {
+  while (i++ < 8) {
+    unsigned char bit = byte & 1;
+    byte >>= 1;
+    update_crc(bit);
+    if (bit) {
       // Next bit is a '1'
       if (modem_packet_size >= MODEM_MAX_PACKET * 8)  // Prevent buffer overrun
         return;
@@ -55,7 +57,6 @@ send_byte(unsigned char byte)
     modem_packet[modem_packet_size >> 3] &= ~(1 << (modem_packet_size & 7));
     modem_packet_size++;
     ones_in_a_row = 0;
-    i++;
   }
 }
 
