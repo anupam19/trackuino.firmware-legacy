@@ -22,7 +22,7 @@
 
 // Module globals
 unsigned short int crc;
-int ones_in_a_row;
+unsigned char ones_in_a_row;
 
 // Module functions
 static void
@@ -38,8 +38,8 @@ update_crc(unsigned char bit)
 static void
 send_byte(unsigned char byte)
 {
-  int i;
-  for (i = 0; i < 8; i++) {
+  unsigned char i = 0;
+  while (i < 8) {
     update_crc((byte >> i) & 1);
     if ((byte >> i) & 1) {
       // Next bit is a '1'
@@ -55,6 +55,7 @@ send_byte(unsigned char byte)
     modem_packet[modem_packet_size >> 3] &= ~(1 << (modem_packet_size & 7));
     modem_packet_size++;
     ones_in_a_row = 0;
+    i++;
   }
 }
 
