@@ -18,17 +18,18 @@
 #include "ax25.h"
 #include "config.h"
 #include "modem.h"
+#include <stdint.h>
 #include <WProgram.h>
 
 // Module globals
-unsigned short int crc;
-unsigned char ones_in_a_row;
+uint16_t crc;
+uint8_t ones_in_a_row;
 
 // Module functions
 static void
-update_crc(unsigned char bit) 
+update_crc(uint8_t a_bit) 
 {
-  crc ^= bit;
+  crc ^= a_bit;
   if (crc & 1)
     crc = (crc >> 1) ^ 0x8408;  // X-modem CRC poly
   else
@@ -36,14 +37,14 @@ update_crc(unsigned char bit)
 }
 
 static void
-send_byte(unsigned char byte)
+send_byte(uint8_t a_byte)
 {
-  unsigned char i = 0;
+  uint8_t i = 0;
   while (i++ < 8) {
-    unsigned char bit = byte & 1;
-    byte >>= 1;
-    update_crc(bit);
-    if (bit) {
+    uint8_t a_bit = a_byte & 1;
+    a_byte >>= 1;
+    update_crc(a_bit);
+    if (a_bit) {
       // Next bit is a '1'
       if (modem_packet_size >= MODEM_MAX_PACKET * 8)  // Prevent buffer overrun
         return;
@@ -62,24 +63,24 @@ send_byte(unsigned char byte)
 
 // Exported functions
 void
-ax25_send_byte(unsigned char byte)
+ax25_send_byte(uint8_t a_byte)
 {
   // Wrap around send_byte, but prints debug info
-  send_byte(byte);
+  send_byte(a_byte);
 #ifdef DEBUG_AX25
-  Serial.print((char)byte);
+  Serial.print((char)a_byte);
 #endif
 }
 
 void
 ax25_send_flag()
 {
-  unsigned char byte = 0x7e;
+  uint8_t flag = 0x7e;
   int i;
   for (i = 0; i < 8; i++, modem_packet_size++) {
     if (modem_packet_size >= MODEM_MAX_PACKET * 8)  // Prevent buffer overrun
       return;
-    if ((byte >> i) & 1)
+    if ((flag >> i) & 1)
       modem_packet[modem_packet_size >> 3] |= (1 << (modem_packet_size & 7));
     else
       modem_packet[modem_packet_size >> 3] &= ~(1 << (modem_packet_size & 7));
@@ -159,7 +160,7 @@ void
 ax25_send_footer()
 {
   // Save the crc so that it can be treated it atomically
-  unsigned short int final_crc = crc;
+  uint16_t final_crc = crc;
   
   // Send the CRC
   send_byte(~(final_crc & 0xff));
