@@ -60,7 +60,7 @@ void aprs_send()
   snprintf(temp, 4, "%03d", (int)(gps_speed + 0.5));
   ax25_send_string(temp);             // speed (knots)
   ax25_send_string("/A=");            // Altitude (feet). Goes anywhere in the comment area
-  snprintf(temp, 7, "%06d", (int)(meters_to_feet(gps_altitude) + 0.5));
+  snprintf(temp, 7, "%06ld", (long)(meters_to_feet(gps_altitude) + 0.5));
   ax25_send_string(temp);
   ax25_send_string("/Ti=");
   ax25_send_string(itoa(sensors_int_lm60(), temp, 10));
